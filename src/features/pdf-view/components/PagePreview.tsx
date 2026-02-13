@@ -32,9 +32,7 @@ interface PagePreviewSectionProps {
 
 /* ---- Helper: Render a single PDF page to canvas ---- */
 
-function getPdfjsLib(): any {
-  return (window as any).pdfjsLib;
-}
+import { pdfjs } from "../../../utils/pdfWorker";
 
 async function renderPageToCanvas(
   pdfData: ArrayBuffer,
@@ -42,7 +40,6 @@ async function renderPageToCanvas(
   scale: number,
   canvas: HTMLCanvasElement
 ): Promise<void> {
-  const pdfjs = getPdfjsLib();
   if (!pdfjs) throw new Error("PDF.js não disponível");
 
   const pdf = await pdfjs.getDocument({ data: new Uint8Array(pdfData) }).promise;
@@ -107,12 +104,11 @@ const PageThumbnail = memo(function PageThumbnail({
     <button
       onClick={onClick}
       className={`relative group rounded-xl overflow-hidden transition-all duration-300 cursor-pointer flex-shrink-0
-        ${
-          isActive
-            ? "ring-2 ring-indigo-500 shadow-lg shadow-indigo-500/20 scale-[1.02]"
-            : isDark
-              ? "ring-1 ring-white/10 hover:ring-indigo-400/40 hover:shadow-lg"
-              : "ring-1 ring-gray-200 hover:ring-indigo-300 hover:shadow-lg"
+        ${isActive
+          ? "ring-2 ring-indigo-500 shadow-lg shadow-indigo-500/20 scale-[1.02]"
+          : isDark
+            ? "ring-1 ring-white/10 hover:ring-indigo-400/40 hover:shadow-lg"
+            : "ring-1 ring-gray-200 hover:ring-indigo-300 hover:shadow-lg"
         }`}
       title={`Página ${pageNum}`}
     >
@@ -141,12 +137,11 @@ const PageThumbnail = memo(function PageThumbnail({
       {/* Page number badge */}
       <div
         className={`absolute bottom-1.5 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[10px] font-bold
-          ${
-            isActive
-              ? "bg-indigo-500 text-white"
-              : isDark
-                ? "bg-black/60 text-white/80"
-                : "bg-white/90 text-gray-700 shadow-sm"
+          ${isActive
+            ? "bg-indigo-500 text-white"
+            : isDark
+              ? "bg-black/60 text-white/80"
+              : "bg-white/90 text-gray-700 shadow-sm"
           }`}
       >
         {pageNum}
@@ -350,12 +345,11 @@ function FullPageViewer({
                 key={pn}
                 onClick={() => onPageChange(pn)}
                 className={`w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer
-                  ${
-                    pn === pageNum
-                      ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/30"
-                      : isDark
-                        ? "hover:bg-white/10 text-gray-400"
-                        : "hover:bg-gray-100 text-gray-500"
+                  ${pn === pageNum
+                    ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/30"
+                    : isDark
+                      ? "hover:bg-white/10 text-gray-400"
+                      : "hover:bg-gray-100 text-gray-500"
                   }`}
               >
                 {pn}
@@ -455,14 +449,13 @@ export function PagePreviewSection({
                   setViewMode("grid");
                 }}
                 className={`p-1.5 rounded-lg transition-all cursor-pointer
-                  ${
-                    viewMode === "grid"
-                      ? isDark
-                        ? "bg-indigo-500/20 text-indigo-400"
-                        : "bg-indigo-100 text-indigo-600"
-                      : isDark
-                        ? "text-gray-500 hover:text-gray-300"
-                        : "text-gray-400 hover:text-gray-600"
+                  ${viewMode === "grid"
+                    ? isDark
+                      ? "bg-indigo-500/20 text-indigo-400"
+                      : "bg-indigo-100 text-indigo-600"
+                    : isDark
+                      ? "text-gray-500 hover:text-gray-300"
+                      : "text-gray-400 hover:text-gray-600"
                   }`}
                 title="Grade de miniaturas"
               >
@@ -474,14 +467,13 @@ export function PagePreviewSection({
                   setViewMode("single");
                 }}
                 className={`p-1.5 rounded-lg transition-all cursor-pointer
-                  ${
-                    viewMode === "single"
-                      ? isDark
-                        ? "bg-indigo-500/20 text-indigo-400"
-                        : "bg-indigo-100 text-indigo-600"
-                      : isDark
-                        ? "text-gray-500 hover:text-gray-300"
-                        : "text-gray-400 hover:text-gray-600"
+                  ${viewMode === "single"
+                    ? isDark
+                      ? "bg-indigo-500/20 text-indigo-400"
+                      : "bg-indigo-100 text-indigo-600"
+                    : isDark
+                      ? "text-gray-500 hover:text-gray-300"
+                      : "text-gray-400 hover:text-gray-600"
                   }`}
                 title="Página única"
               >
@@ -524,10 +516,9 @@ export function PagePreviewSection({
                   <button
                     onClick={() => setShowAllThumbs(true)}
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer
-                      ${
-                        isDark
-                          ? "bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white"
-                          : "bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700"
+                      ${isDark
+                        ? "bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white"
+                        : "bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700"
                       }`}
                   >
                     <Layers className="w-4 h-4" />
@@ -719,12 +710,11 @@ function SinglePageView({
                 key={pn}
                 onClick={() => onPageChange(pn)}
                 className={`w-7 h-7 rounded-md text-[11px] font-bold transition-all cursor-pointer
-                  ${
-                    pn === pageNum
-                      ? "bg-indigo-500 text-white shadow-md shadow-indigo-500/30"
-                      : isDark
-                        ? "hover:bg-white/10 text-gray-500 hover:text-gray-300"
-                        : "hover:bg-gray-200 text-gray-400 hover:text-gray-600"
+                  ${pn === pageNum
+                    ? "bg-indigo-500 text-white shadow-md shadow-indigo-500/30"
+                    : isDark
+                      ? "hover:bg-white/10 text-gray-500 hover:text-gray-300"
+                      : "hover:bg-gray-200 text-gray-400 hover:text-gray-600"
                   }`}
               >
                 {pn}
