@@ -19,28 +19,8 @@ import {
 
 /* ---- Types ---- */
 
-interface PageInfo {
-  pageNumber: number;
-  width: number;
-  height: number;
-  characterCount: number;
-  wordCount: number;
-  hasText: boolean;
-  hasImages: boolean;
-  imageCount: number;
-  textPreview: string;
-  fullText: string;
-}
-
-interface ExtractionSummary {
-  cpf: number;
-  cnpj: number;
-  email: number;
-  telefone: number;
-  data: number;
-  valor_monetario: number;
-  url: number;
-}
+import { PageInfo } from "../../pdf-analysis/types/pdfAnalysis.types";
+import { FieldType } from "../../field-extraction/utils/fieldExtractor";
 
 interface StatsDashboardProps {
   pages: PageInfo[];
@@ -51,7 +31,7 @@ interface StatsDashboardProps {
   hasText: boolean;
   hasImages: boolean;
   pdfType: string;
-  extractionSummary: ExtractionSummary | null;
+  extractionSummary: Record<FieldType, number> | null;
   isDark: boolean;
   glassCard: string;
   txt: string;
@@ -406,7 +386,7 @@ function FieldsBarChart({
   txt,
   txt3,
 }: {
-  summary: ExtractionSummary;
+  summary: Record<FieldType, number>;
   isDark: boolean;
   txt: string;
   txt3: string;
@@ -647,8 +627,8 @@ function WordDensityChart({
   const avgWords =
     pages.length > 0
       ? Math.round(
-          pages.reduce((s, p) => s + p.wordCount, 0) / pages.length
-        )
+        pages.reduce((s, p) => s + p.wordCount, 0) / pages.length
+      )
       : 0;
 
   return (
@@ -1123,14 +1103,13 @@ export function StatsDashboard({
                     key={key}
                     onClick={() => setHeatmapMetric(key)}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer
-                      ${
-                        heatmapMetric === key
-                          ? isDark
-                            ? "bg-indigo-500/20 text-indigo-400"
-                            : "bg-indigo-100 text-indigo-700"
-                          : isDark
-                            ? "bg-white/5 text-gray-500 hover:text-gray-300"
-                            : "bg-gray-100 text-gray-400 hover:text-gray-600"
+                      ${heatmapMetric === key
+                        ? isDark
+                          ? "bg-indigo-500/20 text-indigo-400"
+                          : "bg-indigo-100 text-indigo-700"
+                        : isDark
+                          ? "bg-white/5 text-gray-500 hover:text-gray-300"
+                          : "bg-gray-100 text-gray-400 hover:text-gray-600"
                       }`}
                   >
                     <Icon className="w-3 h-3" />
@@ -1167,14 +1146,13 @@ export function StatsDashboard({
                         key={key}
                         onClick={() => setRankMetric(key)}
                         className={`px-2.5 py-1 rounded-md text-[10px] font-semibold transition-all cursor-pointer
-                          ${
-                            rankMetric === key
-                              ? isDark
-                                ? "bg-amber-500/20 text-amber-400"
-                                : "bg-amber-100 text-amber-700"
-                              : isDark
-                                ? "text-gray-500 hover:text-gray-300"
-                                : "text-gray-400 hover:text-gray-600"
+                          ${rankMetric === key
+                            ? isDark
+                              ? "bg-amber-500/20 text-amber-400"
+                              : "bg-amber-100 text-amber-700"
+                            : isDark
+                              ? "text-gray-500 hover:text-gray-300"
+                              : "text-gray-400 hover:text-gray-600"
                           }`}
                       >
                         {label}

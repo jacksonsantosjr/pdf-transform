@@ -23,10 +23,7 @@ import {
 
 /* ---- Types ---- */
 
-interface PageTextData {
-  pageNumber: number;
-  fullText: string;
-}
+import { PageInfo } from "../pdf-analysis/types/pdfAnalysis.types";
 
 interface SearchMatch {
   pageNumber: number;
@@ -45,7 +42,7 @@ interface SearchOptions {
 }
 
 interface Props {
-  pages: PageTextData[];
+  pages: PageInfo[];
   isDark: boolean;
   glassCard: string;
   txt: string;
@@ -123,11 +120,10 @@ function HighlightedContext({
         {before}
       </span>
       <mark
-        className={`px-1 py-0.5 rounded font-semibold ${
-          isDark
-            ? "bg-amber-500/25 text-amber-300 ring-1 ring-amber-500/30"
-            : "bg-amber-200/80 text-amber-900 ring-1 ring-amber-300/50"
-        }`}
+        className={`px-1 py-0.5 rounded font-semibold ${isDark
+          ? "bg-amber-500/25 text-amber-300 ring-1 ring-amber-500/30"
+          : "bg-amber-200/80 text-amber-900 ring-1 ring-amber-300/50"
+          }`}
       >
         {match}
       </mark>
@@ -178,24 +174,22 @@ function SearchResultItem({
       ref={itemRef}
       onClick={onClick}
       className={`group relative flex items-start gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all duration-200
-        ${
-          isActive
-            ? isDark
-              ? "bg-amber-500/10 ring-1 ring-amber-500/30"
-              : "bg-amber-50 ring-1 ring-amber-300/50"
-            : isDark
-              ? "hover:bg-white/[0.04]"
-              : "hover:bg-gray-50"
+        ${isActive
+          ? isDark
+            ? "bg-amber-500/10 ring-1 ring-amber-500/30"
+            : "bg-amber-50 ring-1 ring-amber-300/50"
+          : isDark
+            ? "hover:bg-white/[0.04]"
+            : "hover:bg-gray-50"
         }`}
     >
       {/* Page number badge */}
       <div className="flex flex-col items-center gap-1 flex-shrink-0 pt-0.5">
         <div
           className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold
-            ${
-              isDark
-                ? "bg-indigo-500/15 text-indigo-400"
-                : "bg-indigo-100 text-indigo-700"
+            ${isDark
+              ? "bg-indigo-500/15 text-indigo-400"
+              : "bg-indigo-100 text-indigo-700"
             }`}
         >
           {result.pageNumber}
@@ -223,12 +217,11 @@ function SearchResultItem({
           );
         }}
         className={`flex-shrink-0 p-1.5 rounded-lg transition-all duration-200 cursor-pointer
-          ${
-            isCopied
-              ? "bg-emerald-500/15 text-emerald-500"
-              : isDark
-                ? "text-gray-600 opacity-0 group-hover:opacity-100 hover:bg-white/10 hover:text-gray-300"
-                : "text-gray-300 opacity-0 group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-600"
+          ${isCopied
+            ? "bg-emerald-500/15 text-emerald-500"
+            : isDark
+              ? "text-gray-600 opacity-0 group-hover:opacity-100 hover:bg-white/10 hover:text-gray-300"
+              : "text-gray-300 opacity-0 group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-600"
           }`}
         title="Copiar contexto"
       >
@@ -242,9 +235,8 @@ function SearchResultItem({
       {/* Active indicator */}
       {isActive && (
         <div
-          className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full ${
-            isDark ? "bg-amber-500" : "bg-amber-400"
-          }`}
+          className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full ${isDark ? "bg-amber-500" : "bg-amber-400"
+            }`}
         />
       )}
     </div>
@@ -284,9 +276,8 @@ function PageGroup({
 }) {
   return (
     <div
-      className={`rounded-xl overflow-hidden transition-all duration-200 ${
-        isDark ? "bg-white/[0.02]" : "bg-gray-50/50"
-      }`}
+      className={`rounded-xl overflow-hidden transition-all duration-200 ${isDark ? "bg-white/[0.02]" : "bg-gray-50/50"
+        }`}
     >
       {/* Page header */}
       <button
@@ -302,19 +293,17 @@ function PageGroup({
             Página {pageNumber}
           </span>
           <span
-            className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-              isDark
-                ? "bg-amber-500/15 text-amber-400"
-                : "bg-amber-100 text-amber-700"
-            }`}
+            className={`text-xs px-2 py-0.5 rounded-full font-medium ${isDark
+              ? "bg-amber-500/15 text-amber-400"
+              : "bg-amber-100 text-amber-700"
+              }`}
           >
             {results.length} {results.length === 1 ? "resultado" : "resultados"}
           </span>
         </div>
         <ChevronRight
-          className={`w-4 h-4 transition-transform duration-200 ${txt3} ${
-            isExpanded ? "rotate-90" : ""
-          }`}
+          className={`w-4 h-4 transition-transform duration-200 ${txt3} ${isExpanded ? "rotate-90" : ""
+            }`}
         />
       </button>
 
@@ -618,19 +607,17 @@ export function TextSearchSection({ pages, isDark, glassCard, txt, txt2, txt3 }:
         <div className="flex items-center gap-2">
           {searchResults.length > 0 && !isExpanded && (
             <span
-              className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                isDark
-                  ? "bg-amber-500/15 text-amber-400"
-                  : "bg-amber-100 text-amber-700"
-              }`}
+              className={`text-xs font-semibold px-2.5 py-1 rounded-full ${isDark
+                ? "bg-amber-500/15 text-amber-400"
+                : "bg-amber-100 text-amber-700"
+                }`}
             >
               {searchResults.length} resultado{searchResults.length !== 1 ? "s" : ""}
             </span>
           )}
           <ChevronDown
-            className={`w-5 h-5 transition-transform duration-300 ${txt3} ${
-              isExpanded ? "rotate-180" : ""
-            }`}
+            className={`w-5 h-5 transition-transform duration-300 ${txt3} ${isExpanded ? "rotate-180" : ""
+              }`}
           />
         </div>
       </button>
@@ -666,10 +653,9 @@ export function TextSearchSection({ pages, isDark, glassCard, txt, txt2, txt3 }:
                       onChange={(e) => setQuery(e.target.value)}
                       placeholder="Digite para pesquisar no texto do PDF..."
                       className={`w-full pl-11 pr-10 py-3 text-sm rounded-xl border outline-none transition-all duration-200
-                        ${
-                          isDark
-                            ? "bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-amber-500/50 focus:bg-white/[0.07] focus:ring-2 focus:ring-amber-500/10"
-                            : "bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                        ${isDark
+                          ? "bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-amber-500/50 focus:bg-white/[0.07] focus:ring-2 focus:ring-amber-500/10"
+                          : "bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
                         }
                         ${regexError ? (isDark ? "border-red-500/50" : "border-red-300") : ""}`}
                       autoFocus
@@ -693,14 +679,13 @@ export function TextSearchSection({ pages, isDark, glassCard, txt, txt2, txt3 }:
                   <button
                     onClick={() => setShowOptions(!showOptions)}
                     className={`p-3 rounded-xl transition-all duration-200 cursor-pointer
-                      ${
-                        showOptions
-                          ? isDark
-                            ? "bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/30"
-                            : "bg-amber-100 text-amber-700 ring-1 ring-amber-200"
-                          : isDark
-                            ? "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
-                            : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700"
+                      ${showOptions
+                        ? isDark
+                          ? "bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/30"
+                          : "bg-amber-100 text-amber-700 ring-1 ring-amber-200"
+                        : isDark
+                          ? "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
+                          : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700"
                       }`}
                     title="Opções de busca"
                   >
@@ -719,9 +704,8 @@ export function TextSearchSection({ pages, isDark, glassCard, txt, txt2, txt3 }:
                 {/* Options panel */}
                 {showOptions && (
                   <div
-                    className={`flex flex-wrap gap-2 mt-3 p-3 rounded-xl ${
-                      isDark ? "bg-white/[0.03]" : "bg-gray-50"
-                    }`}
+                    className={`flex flex-wrap gap-2 mt-3 p-3 rounded-xl ${isDark ? "bg-white/[0.03]" : "bg-gray-50"
+                      }`}
                   >
                     {[
                       {
@@ -747,14 +731,13 @@ export function TextSearchSection({ pages, isDark, glassCard, txt, txt2, txt3 }:
                         key={key}
                         onClick={() => toggleOption(key)}
                         className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer
-                          ${
-                            options[key]
-                              ? isDark
-                                ? "bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/30"
-                                : "bg-amber-100 text-amber-700 ring-1 ring-amber-200"
-                              : isDark
-                                ? "bg-white/5 text-gray-400 hover:bg-white/10"
-                                : "bg-white text-gray-500 hover:bg-gray-100"
+                          ${options[key]
+                            ? isDark
+                              ? "bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/30"
+                              : "bg-amber-100 text-amber-700 ring-1 ring-amber-200"
+                            : isDark
+                              ? "bg-white/5 text-gray-400 hover:bg-white/10"
+                              : "bg-white text-gray-500 hover:bg-gray-100"
                           }`}
                       >
                         <Icon className="w-4 h-4" />
@@ -775,9 +758,8 @@ export function TextSearchSection({ pages, isDark, glassCard, txt, txt2, txt3 }:
               {/* Results summary bar */}
               {debouncedQuery.trim() && (
                 <div
-                  className={`flex items-center justify-between gap-3 py-3 px-4 mb-4 rounded-xl ${
-                    isDark ? "bg-white/[0.03]" : "bg-gray-50"
-                  }`}
+                  className={`flex items-center justify-between gap-3 py-3 px-4 mb-4 rounded-xl ${isDark ? "bg-white/[0.03]" : "bg-gray-50"
+                    }`}
                 >
                   <div className="flex items-center gap-3">
                     <span className={`text-sm font-medium ${txt2}`}>
@@ -875,14 +857,13 @@ export function TextSearchSection({ pages, isDark, glassCard, txt, txt2, txt3 }:
                             }
                           }}
                           className={`flex-1 rounded-sm transition-all duration-300 cursor-pointer group relative min-w-[4px]
-                            ${
-                              count > 0
-                                ? isDark
-                                  ? "bg-amber-500/60 hover:bg-amber-400/80"
-                                  : "bg-amber-400 hover:bg-amber-500"
-                                : isDark
-                                  ? "bg-white/5"
-                                  : "bg-gray-200"
+                            ${count > 0
+                              ? isDark
+                                ? "bg-amber-500/60 hover:bg-amber-400/80"
+                                : "bg-amber-400 hover:bg-amber-500"
+                              : isDark
+                                ? "bg-white/5"
+                                : "bg-gray-200"
                             }`}
                           style={{ height: `${height}%` }}
                           title={`Página ${page.pageNumber}: ${count} resultado${count !== 1 ? "s" : ""}`}
@@ -947,12 +928,11 @@ export function TextSearchSection({ pages, isDark, glassCard, txt, txt2, txt3 }:
                         handleCopy(allText, -999);
                       }}
                       className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all duration-200 cursor-pointer
-                        ${
-                          copiedIdx === -999
-                            ? "bg-emerald-500/15 text-emerald-500"
-                            : isDark
-                              ? "text-gray-400 hover:bg-white/5 hover:text-white"
-                              : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                        ${copiedIdx === -999
+                          ? "bg-emerald-500/15 text-emerald-500"
+                          : isDark
+                            ? "text-gray-400 hover:bg-white/5 hover:text-white"
+                            : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
                         }`}
                     >
                       {copiedIdx === -999 ? (
@@ -986,19 +966,19 @@ export function TextSearchSection({ pages, isDark, glassCard, txt, txt2, txt3 }:
                   {/* Load more */}
                   {groupedResults.length >
                     Math.ceil(visibleResults / 3) && (
-                    <button
-                      onClick={() =>
-                        setVisibleResults((prev) => prev + RESULTS_PER_PAGE)
-                      }
-                      className={`w-full py-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer
+                      <button
+                        onClick={() =>
+                          setVisibleResults((prev) => prev + RESULTS_PER_PAGE)
+                        }
+                        className={`w-full py-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer
                         ${isDark ? "bg-white/[0.03] text-gray-400 hover:bg-white/[0.06] hover:text-white" : "bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}
-                    >
-                      Mostrar mais{" "}
-                      {groupedResults.length -
-                        Math.ceil(visibleResults / 3)}{" "}
-                      página(s)
-                    </button>
-                  )}
+                      >
+                        Mostrar mais{" "}
+                        {groupedResults.length -
+                          Math.ceil(visibleResults / 3)}{" "}
+                        página(s)
+                      </button>
+                    )}
                 </div>
               )}
 
@@ -1020,9 +1000,8 @@ export function TextSearchSection({ pages, isDark, glassCard, txt, txt2, txt3 }:
               {!debouncedQuery.trim() && (
                 <div className={`py-8 text-center ${txt3}`}>
                   <div
-                    className={`w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center ${
-                      isDark ? "bg-white/[0.03]" : "bg-gray-100"
-                    }`}
+                    className={`w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center ${isDark ? "bg-white/[0.03]" : "bg-gray-100"
+                      }`}
                   >
                     <Search className="w-7 h-7 opacity-40" />
                   </div>

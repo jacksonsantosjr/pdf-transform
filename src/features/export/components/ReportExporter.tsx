@@ -28,54 +28,8 @@ import {
 
 /* ---- Types ---- */
 
-interface PageInfo {
-  pageNumber: number;
-  width: number;
-  height: number;
-  characterCount: number;
-  wordCount: number;
-  hasText: boolean;
-  hasImages: boolean;
-  imageCount: number;
-  textPreview: string;
-  fullText: string;
-}
-
-interface SuitabilityRating {
-  score: number;
-  level: "excellent" | "good" | "fair" | "poor";
-  reasons: string[];
-  recommendations: string[];
-}
-
-interface ExtractedField {
-  type: string;
-  value: string;
-  count: number;
-  pages: number[];
-}
-
-interface ExtractionResult {
-  fields: ExtractedField[];
-  totalFound: number;
-  summary: Record<string, number>;
-}
-
-interface PDFAnalysis {
-  fileName: string;
-  fileSize: number;
-  pageCount: number;
-  metadata: Record<string, string>;
-  pages: PageInfo[];
-  pdfType: string;
-  suitability: SuitabilityRating;
-  totalCharacters: number;
-  totalWords: number;
-  hasText: boolean;
-  hasImages: boolean;
-  pdfVersion: string;
-  extractedFields: ExtractionResult | null;
-}
+import { PDFAnalysis, PageInfo, SuitabilityRating } from "../../pdf-analysis/types/pdfAnalysis.types";
+import { ExtractionResult, ExtractedField } from "../../field-extraction/utils/fieldExtractor";
 
 type ExportFormat = "json" | "csv" | "txt";
 
@@ -173,7 +127,7 @@ function generateJsonReport(
 ): string {
   const report: Record<string, any> = {
     _meta: {
-      geradoPor: "PDF Analyzer Pro",
+      geradoPor: "PDF Transform Pro",
       versao: "1.0",
       dataHora: formatTimestamp(),
       formato: "JSON",
@@ -374,7 +328,7 @@ function generateTxtReport(
   const thinSep = "─".repeat(60);
 
   lines.push(separator);
-  lines.push("         PDF ANALYZER PRO — RELATÓRIO COMPLETO");
+  lines.push("         PDF TRANSFORM PRO — RELATÓRIO COMPLETO");
   lines.push(separator);
   lines.push(`  Gerado em: ${formatTimestamp()}`);
   lines.push("");
@@ -527,7 +481,7 @@ function generateTxtReport(
   }
 
   lines.push(separator);
-  lines.push("  Relatório gerado por PDF Analyzer Pro");
+  lines.push("  Relatório gerado por PDF Transform Pro");
   lines.push("  Processamento 100% local e seguro");
   lines.push(separator);
 
@@ -567,12 +521,11 @@ function FormatCard({
     <button
       onClick={() => onClick(format)}
       className={`flex items-center gap-3.5 p-4 rounded-xl border-2 transition-all duration-300 cursor-pointer text-left w-full
-        ${
-          isActive
-            ? `${isDark ? "border-current/30" : "border-current/40"} shadow-lg scale-[1.02]`
-            : isDark
-              ? "border-white/5 hover:border-white/15 hover:bg-white/[0.02]"
-              : "border-gray-100 hover:border-gray-200 hover:bg-gray-50/50"
+        ${isActive
+          ? `${isDark ? "border-current/30" : "border-current/40"} shadow-lg scale-[1.02]`
+          : isDark
+            ? "border-white/5 hover:border-white/15 hover:bg-white/[0.02]"
+            : "border-gray-100 hover:border-gray-200 hover:bg-gray-50/50"
         }`}
       style={isActive ? { borderColor: `${color}50`, backgroundColor: `${color}08` } : {}}
     >
@@ -624,14 +577,13 @@ function OptionToggle({
     <button
       onClick={onToggle}
       className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 cursor-pointer w-full text-left
-        ${
-          enabled
-            ? isDark
-              ? "bg-indigo-500/10 ring-1 ring-indigo-500/20"
-              : "bg-indigo-50 ring-1 ring-indigo-200"
-            : isDark
-              ? "bg-white/[0.02] hover:bg-white/[0.04]"
-              : "bg-gray-50/50 hover:bg-gray-100/60"
+        ${enabled
+          ? isDark
+            ? "bg-indigo-500/10 ring-1 ring-indigo-500/20"
+            : "bg-indigo-50 ring-1 ring-indigo-200"
+          : isDark
+            ? "bg-white/[0.02] hover:bg-white/[0.04]"
+            : "bg-gray-50/50 hover:bg-gray-100/60"
         }`}
     >
       <div
@@ -800,9 +752,8 @@ export function ReportExporterSection({
             </span>
           )}
           <ChevronDown
-            className={`w-5 h-5 transition-transform duration-300 ${txt3} ${
-              isExpanded ? "rotate-180" : ""
-            }`}
+            className={`w-5 h-5 transition-transform duration-300 ${txt3} ${isExpanded ? "rotate-180" : ""
+              }`}
           />
         </div>
       </button>
@@ -988,10 +939,9 @@ export function ReportExporterSection({
             <button
               onClick={handleDownload}
               className={`flex-1 flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl font-semibold text-sm transition-all duration-300 cursor-pointer
-                ${
-                  exported
-                    ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25"
-                    : "bg-gradient-to-r from-rose-500 to-pink-600 text-white hover:shadow-xl hover:shadow-rose-500/25 hover:scale-[1.02]"
+                ${exported
+                  ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25"
+                  : "bg-gradient-to-r from-rose-500 to-pink-600 text-white hover:shadow-xl hover:shadow-rose-500/25 hover:scale-[1.02]"
                 }`}
             >
               {exported ? (
@@ -1011,12 +961,11 @@ export function ReportExporterSection({
             <button
               onClick={handleCopy}
               className={`flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer
-                ${
-                  copied
-                    ? "bg-emerald-500/15 text-emerald-500"
-                    : isDark
-                      ? "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
-                      : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700"
+                ${copied
+                  ? "bg-emerald-500/15 text-emerald-500"
+                  : isDark
+                    ? "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
+                    : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700"
                 }`}
             >
               {copied ? (
@@ -1036,14 +985,13 @@ export function ReportExporterSection({
             <button
               onClick={() => setShowPreview(!showPreview)}
               className={`flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer
-                ${
-                  showPreview
-                    ? isDark
-                      ? "bg-indigo-500/15 text-indigo-400 ring-1 ring-indigo-500/30"
-                      : "bg-indigo-100 text-indigo-700 ring-1 ring-indigo-200"
-                    : isDark
-                      ? "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
-                      : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700"
+                ${showPreview
+                  ? isDark
+                    ? "bg-indigo-500/15 text-indigo-400 ring-1 ring-indigo-500/30"
+                    : "bg-indigo-100 text-indigo-700 ring-1 ring-indigo-200"
+                  : isDark
+                    ? "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
+                    : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700"
                 }`}
             >
               {showPreview ? (
