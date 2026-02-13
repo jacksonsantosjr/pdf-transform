@@ -24,7 +24,23 @@ import {
   Type,
   Image,
   FileWarning,
+  Copy,
+  Check,
+  ChevronDown,
+  Search,
+  ScanSearch,
 } from "lucide-react";
+import {
+  extractFieldsFromPages,
+  FIELD_TYPE_INFO,
+  type ExtractionResult,
+  type FieldType,
+  type ExtractedField,
+} from "./fieldExtractor";
+import { PagePreviewSection } from "./PagePreview";
+import { StatsDashboard } from "./StatsDashboard";
+import { TextSearchSection } from "./TextSearch";
+import { ReportExporterSection } from "./ReportExporter";
 
 /* ================================================================
    TYPES
@@ -40,6 +56,7 @@ interface PageInfo {
   hasImages: boolean;
   imageCount: number;
   textPreview: string;
+  fullText: string;
 }
 
 interface SuitabilityRating {
@@ -64,6 +81,7 @@ interface PDFAnalysis {
   hasText: boolean;
   hasImages: boolean;
   pdfVersion: string;
+  extractedFields: ExtractionResult | null;
 }
 
 type AppState =
@@ -202,6 +220,7 @@ async function analyzePDF(
       hasImages: pageHasImages,
       imageCount,
       textPreview: text.slice(0, 300) + (text.length > 300 ? "..." : ""),
+      fullText: text,
     });
 
     totalChars += charCount;
@@ -229,6 +248,15 @@ async function analyzePDF(
   } else {
     pdfType = "empty";
   }
+
+  onProgress(93, "Extraindo campos inteligentes...");
+
+  // Smart field extraction
+  const pagesTextData = pages.map((p) => ({
+    pageNumber: p.pageNumber,
+    text: p.fullText,
+  }));
+  const extractedFields = extractFieldsFromPages(pagesTextData);
 
   onProgress(96, "Calculando adequação...");
 
@@ -312,6 +340,7 @@ async function analyzePDF(
     hasText: hasAnyText,
     hasImages: hasAnyImages,
     pdfVersion: info.PDFFormatVersion || "N/A",
+    extractedFields,
   };
 }
 
@@ -557,6 +586,387 @@ function SuitabilityGauge({
 }
 
 /* ================================================================
+   SMART FIELDS SECTION COMPONENT
+   ================================================================ */
+
+function SmartFieldsSection({
+  extraction,
+  isDark,
+  glassCard,
+  txt,
+  txt2,
+  txt3,
+}: {
+  extraction: ExtractionResult;
+  isDark: boolean;
+  glassCard: string;
+  txt: string;
+  txt2: string;
+  txt3: string;
+}) {
+  const [activeFilter, setActiveFilter] = useState<FieldType | "all">("all");
+  const [copiedValue, setCopiedValue] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [expandedType, setExpandedType] = useState<FieldType | null>(null);
+
+  const handleCopy = useCallback(async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedValue(value);
+      setTimeout(() => setCopiedValue(null), 2000);
+    } catch {
+      /* fallback */
+      const ta = document.createElement("textarea");
+      ta.value = value;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      setCopiedValue(value);
+      setTimeout(() => setCopiedValue(null), 2000);
+    }
+  }, []);
+
+  const filteredFields = extraction.fields.filter((f) => {
+    const matchesType = activeFilter === "all" || f.type === activeFilter;
+    const matchesSearch =
+      !searchTerm ||
+      f.value.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesType && matchesSearch;
+  });
+
+  const typeOrder: FieldType[] = [
+    "cpf",
+    "cnpj",
+    "email",
+    "telefone",
+    "data",
+    "valor_monetario",
+    "url",
+  ];
+
+  const activeTypes = typeOrder.filter((t) => extraction.summary[t] > 0);
+
+  if (extraction.totalFound === 0) {
+    return (
+      <div
+        className={`${glassCard} rounded-2xl p-6 animate-fade-in-up animation-delay-400`}
+      >
+        <h3
+          className={`text-base font-bold mb-4 flex items-center gap-2.5 ${txt}`}
+        >
+          <div
+            className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDark ? "bg-amber-500/10" : "bg-amber-50"}`}
+          >
+            <ScanSearch
+              className={`w-4 h-4 ${isDark ? "text-amber-400" : "text-amber-600"}`}
+            />
+          </div>
+          Extração Inteligente de Campos
+        </h3>
+        <div
+          className={`flex items-center gap-3 p-4 rounded-xl ${isDark ? "bg-white/[0.03]" : "bg-gray-50"}`}
+        >
+          <Search className={`w-5 h-5 flex-shrink-0 ${txt3}`} />
+          <div>
+            <p className={`text-sm font-medium ${txt2}`}>
+              Nenhum campo estruturado identificado
+            </p>
+            <p className={`text-xs mt-0.5 ${txt3}`}>
+              CPFs, CNPJs, e-mails, telefones, datas, valores monetários e URLs
+              não foram encontrados no texto do documento.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`${glassCard} rounded-2xl p-6 animate-fade-in-up animation-delay-400`}
+    >
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+        <h3
+          className={`text-base font-bold flex items-center gap-2.5 ${txt}`}
+        >
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/20">
+            <ScanSearch className="w-4 h-4 text-white" />
+          </div>
+          Extração Inteligente de Campos
+          <span
+            className={`text-xs font-normal px-2.5 py-1 rounded-full ${isDark ? "bg-indigo-500/15 text-indigo-400" : "bg-indigo-100 text-indigo-700"}`}
+          >
+            {extraction.totalFound} encontrado
+            {extraction.totalFound !== 1 ? "s" : ""}
+          </span>
+        </h3>
+
+        {/* Search */}
+        <div className="relative">
+          <Search
+            className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${txt3}`}
+          />
+          <input
+            type="text"
+            placeholder="Filtrar valores..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className={`pl-9 pr-4 py-2 text-sm rounded-xl border w-full sm:w-56 outline-none transition-all duration-200
+              ${
+                isDark
+                  ? "bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-indigo-500/50 focus:bg-white/[0.07]"
+                  : "bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-indigo-400 focus:bg-white"
+              }`}
+          />
+        </div>
+      </div>
+
+      {/* Summary Pills */}
+      <div className="flex flex-wrap gap-2 mb-5">
+        <button
+          onClick={() => setActiveFilter("all")}
+          className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer
+            ${
+              activeFilter === "all"
+                ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/25"
+                : isDark
+                  ? "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
+                  : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700"
+            }`}
+        >
+          Todos ({extraction.totalFound})
+        </button>
+        {activeTypes.map((type) => {
+          const info = FIELD_TYPE_INFO[type];
+          const count = extraction.summary[type];
+          const isActive = activeFilter === type;
+          return (
+            <button
+              key={type}
+              onClick={() =>
+                setActiveFilter(isActive ? "all" : type)
+              }
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer
+                ${
+                  isActive
+                    ? isDark
+                      ? `${info.bgColorDark} ${info.textColorDark} ring-1 ring-current/30`
+                      : `${info.bgColor} ${info.color} ring-1 ring-current/30`
+                    : isDark
+                      ? "bg-white/5 text-gray-400 hover:bg-white/10"
+                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                }`}
+            >
+              <span>{info.icon}</span>
+              {info.label} ({count})
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Grouped Fields Display */}
+      {activeFilter === "all" ? (
+        <div className="space-y-4">
+          {activeTypes.map((type) => {
+            const info = FIELD_TYPE_INFO[type];
+            const fieldsOfType = filteredFields.filter(
+              (f) => f.type === type
+            );
+            if (fieldsOfType.length === 0) return null;
+
+            const isExpanded = expandedType === type;
+            const displayFields = isExpanded
+              ? fieldsOfType
+              : fieldsOfType.slice(0, 3);
+
+            return (
+              <div
+                key={type}
+                className={`rounded-xl overflow-hidden transition-all duration-200 ${isDark ? "bg-white/[0.02]" : "bg-gray-50/60"}`}
+              >
+                {/* Type Header */}
+                <div
+                  className={`flex items-center justify-between p-3.5 ${isDark ? "border-b border-white/5" : "border-b border-gray-100"}`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center text-base ${isDark ? info.bgColorDark : info.bgColor}`}
+                    >
+                      {info.icon}
+                    </div>
+                    <div>
+                      <p className={`text-sm font-bold ${txt}`}>
+                        {info.label}
+                      </p>
+                      <p className={`text-[10px] ${txt3}`}>
+                        {info.description}
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    className={`text-xs font-bold px-2.5 py-1 rounded-full ${isDark ? info.bgColorDark + " " + info.textColorDark : info.bgColor + " " + info.color}`}
+                  >
+                    {fieldsOfType.length}
+                  </span>
+                </div>
+
+                {/* Field Items */}
+                <div className="divide-y divide-transparent">
+                  {displayFields.map((field, idx) => (
+                    <FieldItem
+                      key={`${field.type}-${field.value}-${idx}`}
+                      field={field}
+                      isDark={isDark}
+                      txt={txt}
+                      txt2={txt2}
+                      txt3={txt3}
+                      copiedValue={copiedValue}
+                      onCopy={handleCopy}
+                    />
+                  ))}
+                </div>
+
+                {/* Show More */}
+                {fieldsOfType.length > 3 && (
+                  <button
+                    onClick={() =>
+                      setExpandedType(isExpanded ? null : type)
+                    }
+                    className={`w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-all duration-200 cursor-pointer
+                      ${isDark ? "text-indigo-400 hover:bg-white/[0.03]" : "text-indigo-600 hover:bg-gray-100"}`}
+                  >
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                    />
+                    {isExpanded
+                      ? "Mostrar menos"
+                      : `Ver mais ${fieldsOfType.length - 3} item(ns)`}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          {filteredFields.length === 0 && searchTerm && (
+            <div className={`text-center py-8 ${txt3}`}>
+              <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">
+                Nenhum resultado para &ldquo;{searchTerm}&rdquo;
+              </p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-1">
+          {filteredFields.map((field, idx) => (
+            <FieldItem
+              key={`${field.type}-${field.value}-${idx}`}
+              field={field}
+              isDark={isDark}
+              txt={txt}
+              txt2={txt2}
+              txt3={txt3}
+              copiedValue={copiedValue}
+              onCopy={handleCopy}
+            />
+          ))}
+          {filteredFields.length === 0 && searchTerm && (
+            <div className={`text-center py-8 ${txt3}`}>
+              <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">
+                Nenhum resultado para &ldquo;{searchTerm}&rdquo;
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ================================================================
+   FIELD ITEM COMPONENT
+   ================================================================ */
+
+function FieldItem({
+  field,
+  isDark,
+  txt,
+  txt3,
+  copiedValue,
+  onCopy,
+}: {
+  field: ExtractedField;
+  isDark: boolean;
+  txt: string;
+  txt2?: string;
+  txt3: string;
+  copiedValue: string | null;
+  onCopy: (value: string) => void;
+}) {
+  const isCopied = copiedValue === field.value;
+
+  return (
+    <div
+      className={`flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition-all duration-150 group
+        ${isDark ? "hover:bg-white/[0.03]" : "hover:bg-gray-100/80"}`}
+    >
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="min-w-0 flex-1">
+          <p
+            className={`text-sm font-mono font-medium truncate ${txt}`}
+            title={field.value}
+          >
+            {field.value}
+          </p>
+          <div className={`flex items-center gap-2 mt-0.5 text-[10px] ${txt3}`}>
+            {field.count > 1 && (
+              <span
+                className={`px-1.5 py-0.5 rounded ${isDark ? "bg-white/5" : "bg-gray-200/80"}`}
+              >
+                {field.count}× encontrado
+              </span>
+            )}
+            <span>
+              Pág.{" "}
+              {field.pages.length <= 3
+                ? field.pages.join(", ")
+                : `${field.pages.slice(0, 3).join(", ")}...+${field.pages.length - 3}`}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <button
+        onClick={() => onCopy(field.value)}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 flex-shrink-0 cursor-pointer
+          ${
+            isCopied
+              ? "bg-emerald-500/15 text-emerald-500"
+              : isDark
+                ? "bg-white/5 text-gray-400 opacity-0 group-hover:opacity-100 hover:bg-white/10 hover:text-white"
+                : "bg-gray-100 text-gray-400 opacity-0 group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-700"
+          }`}
+        title="Copiar valor"
+      >
+        {isCopied ? (
+          <>
+            <Check className="w-3.5 h-3.5" />
+            Copiado
+          </>
+        ) : (
+          <>
+            <Copy className="w-3.5 h-3.5" />
+            Copiar
+          </>
+        )}
+      </button>
+    </div>
+  );
+}
+
+/* ================================================================
    MAIN APP COMPONENT
    ================================================================ */
 
@@ -572,6 +982,7 @@ export function App() {
   const [convertedUrl, setConvertedUrl] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [expandedPages, setExpandedPages] = useState<Set<number>>(new Set());
+  const [fileBuffer, setFileBuffer] = useState<ArrayBuffer | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -599,6 +1010,10 @@ export function App() {
     setError("");
     setConvertedUrl("");
     setExpandedPages(new Set());
+
+    // Store ArrayBuffer for page preview rendering
+    const buffer = await f.arrayBuffer();
+    setFileBuffer(buffer);
 
     try {
       const result = await analyzePDF(f, (p, m) => {
@@ -644,6 +1059,7 @@ export function App() {
     setExpandedPages(new Set());
     if (convertedUrl) URL.revokeObjectURL(convertedUrl);
     setConvertedUrl("");
+    setFileBuffer(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, [convertedUrl]);
 
@@ -1272,6 +1688,72 @@ export function App() {
                   </div>
                 </div>
               </div>
+
+              {/* ---- Smart Field Extraction ---- */}
+              {analysis.extractedFields && (
+                <SmartFieldsSection
+                  extraction={analysis.extractedFields}
+                  isDark={isDark}
+                  glassCard={glassCard}
+                  txt={txt}
+                  txt2={txt2}
+                  txt3={txt3}
+                />
+              )}
+
+              {/* ---- Text Search ---- */}
+              <TextSearchSection
+                pages={analysis.pages.map((p) => ({
+                  pageNumber: p.pageNumber,
+                  fullText: p.fullText,
+                }))}
+                isDark={isDark}
+                glassCard={glassCard}
+                txt={txt}
+                txt2={txt2}
+                txt3={txt3}
+              />
+
+              {/* ---- Report Exporter ---- */}
+              <ReportExporterSection
+                analysis={analysis}
+                isDark={isDark}
+                glassCard={glassCard}
+                txt={txt}
+                txt2={txt2}
+                txt3={txt3}
+              />
+
+              {/* ---- Stats Dashboard ---- */}
+              <StatsDashboard
+                pages={analysis.pages}
+                totalCharacters={analysis.totalCharacters}
+                totalWords={analysis.totalWords}
+                fileSize={analysis.fileSize}
+                pageCount={analysis.pageCount}
+                hasText={analysis.hasText}
+                hasImages={analysis.hasImages}
+                pdfType={analysis.pdfType}
+                extractionSummary={analysis.extractedFields?.summary ?? null}
+                isDark={isDark}
+                glassCard={glassCard}
+                txt={txt}
+                txt2={txt2}
+                txt3={txt3}
+              />
+
+              {/* ---- Page Visual Preview ---- */}
+              {fileBuffer && (
+                <PagePreviewSection
+                  fileArrayBuffer={fileBuffer}
+                  pageCount={analysis.pageCount}
+                  isDark={isDark}
+                  glassCard={glassCard}
+                  txt={txt}
+                  txt2={txt2}
+                  txt3={txt3}
+                />
+              )}
 
               {/* ---- Pages Overview ---- */}
               <div className={`${glassCard} rounded-2xl p-6 animate-fade-in-up animation-delay-600`}>
