@@ -1,28 +1,15 @@
 
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-
-function getPdfjsLib(): any {
-    return (window as any).pdfjsLib;
-}
-
-function getTesseract(): any {
-    return (window as any).Tesseract;
-}
+import { createOCRWorker } from "../../../utils/ocrWorker";
+import { pdfjs } from "../../../utils/pdfWorker";
 
 export async function convertToNativeTextPDF(
     file: File,
     onProgress: (progress: number, message: string) => void
 ): Promise<Blob> {
-    const pdfjs = getPdfjsLib();
-    const tesseract = getTesseract();
 
     if (!pdfjs) {
-        throw new Error("PDF.js não disponível. Verifique sua conexão.");
-    }
-    if (!tesseract) {
-        throw new Error(
-            "Tesseract.js (OCR) não disponível. Verifique sua conexão com a internet e recarregue a página."
-        );
+        throw new Error("PDF.js não disponível.");
     }
 
     onProgress(2, "Carregando arquivo PDF...");
@@ -30,12 +17,23 @@ export async function convertToNativeTextPDF(
     const pdf = await pdfjs.getDocument({ data: new Uint8Array(arrayBuffer) })
         .promise;
 
-    onProgress(5, "Preparando novo documento...");
+    onProgress(5, "Inicializando motor OCR...");
+    // Inicializa o worker do Tesseract
+    let worker;
+    try {
+        worker = await createOCRWorker((m: any) => {
+            // Logger interno do worker
+        });
+    } catch (e: any) {
+        throw new Error(`Falha ao iniciar OCR: ${e.message}. Verifique se os arquivos do worker estão acessíveis.`);
+    }
+
+    onProgress(8, "Preparando novo documento...");
     const newPdf = await PDFDocument.create();
     const font = await newPdf.embedFont(StandardFonts.Helvetica);
 
     for (let i = 1; i <= pdf.numPages; i++) {
-        const base = 5 + ((i - 1) / pdf.numPages) * 90;
+        const base = 10 + ((i - 1) / pdf.numPages) * 85;
 
         onProgress(base, `Renderizando página ${i} de ${pdf.numPages}...`);
 
@@ -64,25 +62,16 @@ export async function convertToNativeTextPDF(
 
         if (pageHasText) {
             onProgress(
-                base + 8,
+                base + 5,
                 `Página ${i}: texto nativo detectado, pulando OCR...`
             );
             finalText = existingText;
         } else {
-            onProgress(base + 3, `OCR página ${i} de ${pdf.numPages}...`);
-            const result = await tesseract.recognize(canvas, "por+eng", {
-                logger: (m: any) => {
-                    if (m.status === "recognizing text") {
-                        const p = base + 3 + (m.progress * 85) / pdf.numPages;
-                        onProgress(
-                            Math.min(p, 95),
-                            `OCR página ${i}: ${Math.round(m.progress * 100)}%`
-                        );
-                    } else if (m.status === "loading language traineddata") {
-                        onProgress(base + 1, "Carregando modelo de idioma OCR...");
-                    }
-                },
-            });
+            onProgress(base + 2, `OCR página ${i} de ${pdf.numPages}...`);
+
+            // Reconhece o texto usando o worker criado
+            const result = await worker.recognize(canvas);
+
             finalText = result.data.text;
         }
 
@@ -134,6 +123,11 @@ export async function convertToNativeTextPDF(
         // Clean up
         canvas.width = 0;
         canvas.height = 0;
+    }
+
+    // Termina o worker após o uso para liberar memória
+    if (worker) {
+        await worker.terminate();
     }
 
     onProgress(97, "Finalizando documento PDF...");
