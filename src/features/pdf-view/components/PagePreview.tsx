@@ -52,7 +52,7 @@ async function renderPageToCanvas(
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas context não disponível");
 
-  await page.render({ canvasContext: ctx, viewport }).promise;
+  await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
 }
 
 /* ================================================================

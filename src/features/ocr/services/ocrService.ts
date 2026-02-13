@@ -21,7 +21,7 @@ export async function convertToNativeTextPDF(
     // Inicializa o worker do Tesseract
     let worker;
     try {
-        worker = await createOCRWorker((m: any) => {
+        worker = await createOCRWorker((_m: any) => {
             // Logger interno do worker
         });
     } catch (e: any) {
@@ -56,7 +56,7 @@ export async function convertToNativeTextPDF(
         const ctx = canvas.getContext("2d");
         if (!ctx) throw new Error("Canvas não disponível");
 
-        await page.render({ canvasContext: ctx, viewport: renderViewport }).promise;
+        await page.render({ canvasContext: ctx, viewport: renderViewport, canvas } as any).promise;
 
         let finalText: string;
 
