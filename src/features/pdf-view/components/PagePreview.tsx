@@ -28,6 +28,7 @@ interface PagePreviewSectionProps {
   txt: string;
   txt2: string;
   txt3: string;
+  embedded?: boolean;
 }
 
 /* ---- Helper: Render a single PDF page to canvas ---- */
@@ -392,13 +393,14 @@ export function PagePreviewSection({
   txt,
   txt2,
   txt3,
+  embedded = false,
 }: PagePreviewSectionProps) {
-  const [isVisible, setIsVisible] = useState(false);
+  const [isVisible, setIsVisible] = useState(embedded ? true : false);
   const [viewMode, setViewMode] = useState<"grid" | "single">("grid");
   const [activePage, setActivePage] = useState(1);
   const [viewerScale, setViewerScale] = useState(1.5);
   const [showFullViewer, setShowFullViewer] = useState(false);
-  const [thumbnailsLoaded, setThumbnailsLoaded] = useState(false);
+  const [thumbnailsLoaded, setThumbnailsLoaded] = useState(embedded ? true : false);
 
   // Limit thumbnails for performance (first load shows 12, then all)
   const MAX_INITIAL_THUMBS = 12;
@@ -420,6 +422,125 @@ export function PagePreviewSection({
     });
   }, []);
 
+  // Content render logic
+  const content = (
+    <div className={`${embedded ? "" : "px-6 pb-6"} animate-fade-in-up`} style={{ animationDuration: "0.3s" }}>
+      {/* ---- GRID VIEW ---- */}
+      {viewMode === "grid" && (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {Array.from({ length: displayedPages }, (_, i) => (
+              <PageThumbnail
+                key={i + 1}
+                pdfData={fileArrayBuffer}
+                pageNum={i + 1}
+                isActive={activePage === i + 1}
+                isDark={isDark}
+                onClick={() => handleThumbnailClick(i + 1)}
+              />
+            ))}
+          </div>
+
+          {/* Show more thumbnails button */}
+          {pageCount > MAX_INITIAL_THUMBS && !showAllThumbs && (
+            <div className="flex justify-center mt-4">
+              <button
+                onClick={() => setShowAllThumbs(true)}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer
+                  ${isDark
+                    ? "bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white"
+                    : "bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700"
+                  }`}
+              >
+                <Layers className="w-4 h-4" />
+                Carregar todas as {pageCount} páginas
+              </button>
+            </div>
+          )}
+
+          <p className={`text-xs text-center mt-4 ${txt3}`}>
+            Clique em uma miniatura para visualizar em tamanho completo
+          </p>
+        </>
+      )}
+
+      {/* ---- SINGLE PAGE VIEW ---- */}
+      {viewMode === "single" && (
+        <SinglePageView
+          pdfData={fileArrayBuffer}
+          pageNum={activePage}
+          totalPages={pageCount}
+          isDark={isDark}
+          txt={txt}
+          txt2={txt2}
+          txt3={txt3}
+          onPageChange={setActivePage}
+          onExpand={() => {
+            setShowFullViewer(true);
+            setViewerScale(1.5);
+          }}
+        />
+      )}
+    </div>
+  );
+
+  if (embedded) {
+    return (
+      <div className="space-y-4">
+        {/* Controls for Embedded Mode */}
+        <div className="flex items-center justify-between mb-4">
+          <h3 className={`text-sm font-bold ${txt}`}>Visualizar Páginas</h3>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer
+                  ${viewMode === "grid"
+                  ? isDark
+                    ? "bg-indigo-500/20 text-indigo-400"
+                    : "bg-indigo-100 text-indigo-600"
+                  : isDark
+                    ? "text-gray-500 hover:text-gray-300"
+                    : "text-gray-400 hover:text-gray-600"
+                }`}
+              title="Grade de miniaturas"
+            >
+              <Grid3X3 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode("single")}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer
+                  ${viewMode === "single"
+                  ? isDark
+                    ? "bg-indigo-500/20 text-indigo-400"
+                    : "bg-indigo-100 text-indigo-600"
+                  : isDark
+                    ? "text-gray-500 hover:text-gray-300"
+                    : "text-gray-400 hover:text-gray-600"
+                }`}
+              title="Página única"
+            >
+              <Maximize2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        {content}
+        {/* Full-screen viewer */}
+        {showFullViewer && (
+          <FullPageViewer
+            pdfData={fileArrayBuffer}
+            pageNum={activePage}
+            totalPages={pageCount}
+            isDark={isDark}
+            scale={viewerScale}
+            onPageChange={setActivePage}
+            onScaleChange={setViewerScale}
+            onClose={() => setShowFullViewer(false)}
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className={`${glassCard} rounded-2xl overflow-hidden animate-fade-in-up animation-delay-400`}>
       {/* Header - always visible */}
@@ -439,6 +560,7 @@ export function PagePreviewSection({
             {pageCount} página{pageCount !== 1 ? "s" : ""}
           </span>
         </h3>
+
 
         <div className="flex items-center gap-2">
           {isVisible && (
@@ -492,66 +614,7 @@ export function PagePreviewSection({
       </div>
 
       {/* Content area */}
-      {isVisible && thumbnailsLoaded && (
-        <div className={`px-6 pb-6 animate-fade-in-up`} style={{ animationDuration: "0.3s" }}>
-          {/* ---- GRID VIEW ---- */}
-          {viewMode === "grid" && (
-            <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                {Array.from({ length: displayedPages }, (_, i) => (
-                  <PageThumbnail
-                    key={i + 1}
-                    pdfData={fileArrayBuffer}
-                    pageNum={i + 1}
-                    isActive={activePage === i + 1}
-                    isDark={isDark}
-                    onClick={() => handleThumbnailClick(i + 1)}
-                  />
-                ))}
-              </div>
-
-              {/* Show more thumbnails button */}
-              {pageCount > MAX_INITIAL_THUMBS && !showAllThumbs && (
-                <div className="flex justify-center mt-4">
-                  <button
-                    onClick={() => setShowAllThumbs(true)}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer
-                      ${isDark
-                        ? "bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white"
-                        : "bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700"
-                      }`}
-                  >
-                    <Layers className="w-4 h-4" />
-                    Carregar todas as {pageCount} páginas
-                  </button>
-                </div>
-              )}
-
-              <p className={`text-xs text-center mt-4 ${txt3}`}>
-                Clique em uma miniatura para visualizar em tamanho completo
-              </p>
-            </>
-          )}
-
-          {/* ---- SINGLE PAGE VIEW ---- */}
-          {viewMode === "single" && (
-            <SinglePageView
-              pdfData={fileArrayBuffer}
-              pageNum={activePage}
-              totalPages={pageCount}
-              isDark={isDark}
-              txt={txt}
-              txt2={txt2}
-              txt3={txt3}
-              onPageChange={setActivePage}
-              onExpand={() => {
-                setShowFullViewer(true);
-                setViewerScale(1.5);
-              }}
-            />
-          )}
-        </div>
-      )}
+      {isVisible && thumbnailsLoaded && content}
 
       {/* Full-screen viewer */}
       {showFullViewer && (

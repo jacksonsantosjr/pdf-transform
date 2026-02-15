@@ -37,6 +37,7 @@ interface StatsDashboardProps {
   txt: string;
   txt2: string;
   txt3: string;
+  embedded?: boolean;
 }
 
 /* ---- Helper ---- */
@@ -755,8 +756,9 @@ export function StatsDashboard({
   glassCard,
   txt,
   txt3,
+  embedded = false,
 }: StatsDashboardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(embedded ? true : false);
   const [heatmapMetric, setHeatmapMetric] = useState<
     "words" | "characters" | "images"
   >("words");
@@ -843,6 +845,369 @@ export function StatsDashboard({
     { label: "Imagens", value: stats.totalImages, color: "#f59e0b" },
   ].filter((s) => s.value > 0);
 
+  const content = (
+    <div className={`space-y-6 ${embedded ? "" : "px-6 pb-6 animate-fade-in-up"}`} style={embedded ? {} : { animationDuration: "0.3s" }}>
+      {/* ---- Row 1: Mini stat cards ---- */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <MiniStat
+          icon={Type}
+          label="Total Palavras"
+          value={formatNumber(totalWords)}
+          sub={`~${stats.avgWordsPerPage}/pág`}
+          color="#6366f1"
+          isDark={isDark}
+          txt={txt}
+          txt3={txt3}
+        />
+        <MiniStat
+          icon={Hash}
+          label="Caracteres"
+          value={formatNumber(totalCharacters)}
+          sub={`~${formatNumber(stats.avgCharsPerPage)}/pág`}
+          color="#8b5cf6"
+          isDark={isDark}
+          txt={txt}
+          txt3={txt3}
+        />
+        <MiniStat
+          icon={Image}
+          label="Imagens"
+          value={formatNumber(stats.totalImages)}
+          sub={`em ${pages.filter((p) => p.hasImages).length} pág.`}
+          color="#f59e0b"
+          isDark={isDark}
+          txt={txt}
+          txt3={txt3}
+        />
+        <MiniStat
+          icon={Activity}
+          label="Densidade Texto"
+          value={`${stats.textDensity}%`}
+          sub={`${pages.filter((p) => p.hasText).length} de ${pageCount} pág.`}
+          color="#10b981"
+          isDark={isDark}
+          txt={txt}
+          txt3={txt3}
+        />
+        <MiniStat
+          icon={AlignLeft}
+          label="Tempo Leitura"
+          value={stats.readingTimeMin < 60 ? `${stats.readingTimeMin} min` : `${Math.round(stats.readingTimeMin / 60)}h ${stats.readingTimeMin % 60}min`}
+          sub="~200 palavras/min"
+          color="#06b6d4"
+          isDark={isDark}
+          txt={txt}
+          txt3={txt3}
+        />
+        <MiniStat
+          icon={Maximize2}
+          label="Formato Médio"
+          value={`${stats.avgWidth}×${stats.avgHeight}`}
+          sub="milímetros"
+          color="#ec4899"
+          isDark={isDark}
+          txt={txt}
+          txt3={txt3}
+        />
+      </div>
+
+      {/* ---- Row 2: Donut Charts + Content Distribution ---- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {/* Page Type Donut */}
+        <div
+          className={`p-5 rounded-xl ${isDark ? "bg-white/[0.02]" : "bg-gray-50/60"}`}
+        >
+          <div className="flex items-center gap-2 mb-4">
+            <PieChart
+              className={`w-4 h-4 ${isDark ? "text-cyan-400" : "text-cyan-600"}`}
+            />
+            <p
+              className={`text-xs font-semibold uppercase tracking-wider ${txt3}`}
+            >
+              Tipo de Página
+            </p>
+          </div>
+          <DonutChart
+            segments={pageTypeSegments}
+            centerLabel="Páginas"
+            centerValue={pageCount.toString()}
+            isDark={isDark}
+            txt={txt}
+            txt3={txt3}
+            size={150}
+          />
+        </div>
+
+        {/* Content Composition Donut */}
+        <div
+          className={`p-5 rounded-xl ${isDark ? "bg-white/[0.02]" : "bg-gray-50/60"}`}
+        >
+          <div className="flex items-center gap-2 mb-4">
+            <PieChart
+              className={`w-4 h-4 ${isDark ? "text-indigo-400" : "text-indigo-600"}`}
+            />
+            <p
+              className={`text-xs font-semibold uppercase tracking-wider ${txt3}`}
+            >
+              Composição do Conteúdo
+            </p>
+          </div>
+          <DonutChart
+            segments={contentSegments}
+            centerLabel="Elementos"
+            centerValue={formatNumber(totalWords + stats.totalImages)}
+            isDark={isDark}
+            txt={txt}
+            txt3={txt3}
+            size={150}
+          />
+        </div>
+
+        {/* Content Distribution Stacked Bar */}
+        <div
+          className={`p-5 rounded-xl ${isDark ? "bg-white/[0.02]" : "bg-gray-50/60"}`}
+        >
+          <ContentDistributionBar
+            textPages={stats.textPages}
+            imagePages={stats.imageOnlyPages}
+            mixedPages={stats.mixedPages}
+            emptyPages={stats.emptyPages}
+            total={pageCount}
+            isDark={isDark}
+            txt3={txt3}
+          />
+
+          {/* Extra stats below */}
+          <div className={`mt-5 pt-4 border-t ${isDark ? "border-white/5" : "border-gray-200/60"}`}>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <p className={`text-[10px] uppercase tracking-wider ${txt3}`}>
+                  Página + densa
+                </p>
+                {stats.maxWordsPage && (
+                  <p className={`text-sm font-bold ${txt}`}>
+                    Pág. {stats.maxWordsPage.pageNumber}
+                    <span className={`text-[10px] font-normal ml-1 ${txt3}`}>
+                      ({formatNumber(stats.maxWordsPage.wordCount)} pal.)
+                    </span>
+                  </p>
+                )}
+              </div>
+              <div>
+                <p className={`text-[10px] uppercase tracking-wider ${txt3}`}>
+                  Página - densa
+                </p>
+                {stats.minWordsPage && (
+                  <p className={`text-sm font-bold ${txt}`}>
+                    Pág. {stats.minWordsPage.pageNumber}
+                    <span className={`text-[10px] font-normal ml-1 ${txt3}`}>
+                      ({formatNumber(stats.minWordsPage.wordCount)} pal.)
+                    </span>
+                  </p>
+                )}
+              </div>
+              <div>
+                <p className={`text-[10px] uppercase tracking-wider ${txt3}`}>
+                  Tipo de PDF
+                </p>
+                <p className={`text-sm font-bold ${txt}`}>
+                  {pdfType === "native-text"
+                    ? "Texto Nativo"
+                    : pdfType === "scanned-image"
+                      ? "Digitalizado"
+                      : pdfType === "mixed"
+                        ? "Misto"
+                        : "Vazio"}
+                </p>
+              </div>
+              <div>
+                <p className={`text-[10px] uppercase tracking-wider ${txt3}`}>
+                  Eficiência
+                </p>
+                <p className={`text-sm font-bold ${txt}`}>
+                  {stats.bytesPerWord > 0
+                    ? `${formatNumber(stats.bytesPerWord)} B/palavra`
+                    : "N/A"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ---- Row 3: Word Density Chart ---- */}
+      {pages.length > 1 && (
+        <div
+          className={`p-5 rounded-xl ${isDark ? "bg-white/[0.02]" : "bg-gray-50/60"}`}
+        >
+          <WordDensityChart
+            pages={pages}
+            isDark={isDark}
+            txt={txt}
+            txt3={txt3}
+          />
+        </div>
+      )}
+
+      {/* ---- Row 4: Heatmap + Top Pages + Fields Chart ---- */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Heatmap */}
+        <div
+          className={`p-5 rounded-xl ${isDark ? "bg-white/[0.02]" : "bg-gray-50/60"}`}
+        >
+          {/* Metric selector */}
+          <div className="flex items-center gap-2 mb-4">
+            {(
+              [
+                { key: "words", label: "Palavras", icon: Type },
+                { key: "characters", label: "Caracteres", icon: Hash },
+                { key: "images", label: "Imagens", icon: Image },
+              ] as const
+            ).map(({ key, label, icon: Icon }) => (
+              <button
+                key={key}
+                onClick={() => setHeatmapMetric(key)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer
+                      ${heatmapMetric === key
+                    ? isDark
+                      ? "bg-indigo-500/20 text-indigo-400"
+                      : "bg-indigo-100 text-indigo-700"
+                    : isDark
+                      ? "bg-white/5 text-gray-500 hover:text-gray-300"
+                      : "bg-gray-100 text-gray-400 hover:text-gray-600"
+                  }`}
+              >
+                <Icon className="w-3 h-3" />
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <PageHeatmap
+            pages={pages}
+            metric={heatmapMetric}
+            isDark={isDark}
+            txt={txt}
+            txt3={txt3}
+          />
+        </div>
+
+        {/* Right Column: Top Pages or Fields Chart */}
+        <div className="space-y-5">
+          {/* Top Pages */}
+          {pages.length > 1 && (
+            <div
+              className={`p-5 rounded-xl ${isDark ? "bg-white/[0.02]" : "bg-gray-50/60"}`}
+            >
+              {/* Metric selector */}
+              <div className="flex items-center gap-2 mb-1">
+                {(
+                  [
+                    { key: "words", label: "Palavras" },
+                    { key: "characters", label: "Caracteres" },
+                  ] as const
+                ).map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => setRankMetric(key)}
+                    className={`px-2.5 py-1 rounded-md text-[10px] font-semibold transition-all cursor-pointer
+                          ${rankMetric === key
+                        ? isDark
+                          ? "bg-amber-500/20 text-amber-400"
+                          : "bg-amber-100 text-amber-700"
+                        : isDark
+                          ? "text-gray-500 hover:text-gray-300"
+                          : "text-gray-400 hover:text-gray-600"
+                      }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <TopPagesRanking
+                pages={pages}
+                metric={rankMetric}
+                isDark={isDark}
+                txt={txt}
+                txt3={txt3}
+              />
+            </div>
+          )}
+
+          {/* Extracted Fields Chart */}
+          {extractionSummary && (
+            <div
+              className={`p-5 rounded-xl ${isDark ? "bg-white/[0.02]" : "bg-gray-50/60"}`}
+            >
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp
+                  className={`w-4 h-4 ${isDark ? "text-emerald-400" : "text-emerald-600"}`}
+                />
+                <p
+                  className={`text-xs font-semibold uppercase tracking-wider ${txt3}`}
+                >
+                  Campos Extraídos
+                </p>
+              </div>
+              <FieldsBarChart
+                summary={extractionSummary}
+                isDark={isDark}
+                txt={txt}
+                txt3={txt3}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ---- Row 5: Per-page word count bars ---- */}
+      {pages.length > 1 && pages.length <= 50 && (
+        <div
+          className={`p-5 rounded-xl ${isDark ? "bg-white/[0.02]" : "bg-gray-50/60"}`}
+        >
+          <p
+            className={`text-xs font-semibold uppercase tracking-wider mb-4 ${txt3}`}
+          >
+            Palavras por Página (Detalhado)
+          </p>
+          <div className="space-y-2.5">
+            {pages.map((page, idx) => (
+              <AnimatedBar
+                key={page.pageNumber}
+                value={page.wordCount}
+                maxValue={
+                  stats.maxWordsPage ? stats.maxWordsPage.wordCount : 1
+                }
+                label={`Página ${page.pageNumber}`}
+                sublabel={
+                  page.hasImages
+                    ? `📷 ${page.imageCount}`
+                    : undefined
+                }
+                color={
+                  page.hasText
+                    ? page.hasImages
+                      ? "linear-gradient(90deg, #f59e0b, #d97706)"
+                      : "linear-gradient(90deg, #6366f1, #4f46e5)"
+                    : "linear-gradient(90deg, #ef4444, #dc2626)"
+                }
+                isDark={isDark}
+                txt={txt}
+                txt3={txt3}
+                index={idx}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
   return (
     <div
       className={`${glassCard} rounded-2xl overflow-hidden animate-fade-in-up animation-delay-400`}
@@ -880,364 +1245,7 @@ export function StatsDashboard({
       </div>
 
       {/* Content */}
-      {isExpanded && (
-        <div className="px-6 pb-6 space-y-6 animate-fade-in-up" style={{ animationDuration: "0.3s" }}>
-          {/* ---- Row 1: Mini stat cards ---- */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <MiniStat
-              icon={Type}
-              label="Total Palavras"
-              value={formatNumber(totalWords)}
-              sub={`~${stats.avgWordsPerPage}/pág`}
-              color="#6366f1"
-              isDark={isDark}
-              txt={txt}
-              txt3={txt3}
-            />
-            <MiniStat
-              icon={Hash}
-              label="Caracteres"
-              value={formatNumber(totalCharacters)}
-              sub={`~${formatNumber(stats.avgCharsPerPage)}/pág`}
-              color="#8b5cf6"
-              isDark={isDark}
-              txt={txt}
-              txt3={txt3}
-            />
-            <MiniStat
-              icon={Image}
-              label="Imagens"
-              value={formatNumber(stats.totalImages)}
-              sub={`em ${pages.filter((p) => p.hasImages).length} pág.`}
-              color="#f59e0b"
-              isDark={isDark}
-              txt={txt}
-              txt3={txt3}
-            />
-            <MiniStat
-              icon={Activity}
-              label="Densidade Texto"
-              value={`${stats.textDensity}%`}
-              sub={`${pages.filter((p) => p.hasText).length} de ${pageCount} pág.`}
-              color="#10b981"
-              isDark={isDark}
-              txt={txt}
-              txt3={txt3}
-            />
-            <MiniStat
-              icon={AlignLeft}
-              label="Tempo Leitura"
-              value={stats.readingTimeMin < 60 ? `${stats.readingTimeMin} min` : `${Math.round(stats.readingTimeMin / 60)}h ${stats.readingTimeMin % 60}min`}
-              sub="~200 palavras/min"
-              color="#06b6d4"
-              isDark={isDark}
-              txt={txt}
-              txt3={txt3}
-            />
-            <MiniStat
-              icon={Maximize2}
-              label="Formato Médio"
-              value={`${stats.avgWidth}×${stats.avgHeight}`}
-              sub="milímetros"
-              color="#ec4899"
-              isDark={isDark}
-              txt={txt}
-              txt3={txt3}
-            />
-          </div>
-
-          {/* ---- Row 2: Donut Charts + Content Distribution ---- */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {/* Page Type Donut */}
-            <div
-              className={`p-5 rounded-xl ${isDark ? "bg-white/[0.02]" : "bg-gray-50/60"}`}
-            >
-              <div className="flex items-center gap-2 mb-4">
-                <PieChart
-                  className={`w-4 h-4 ${isDark ? "text-cyan-400" : "text-cyan-600"}`}
-                />
-                <p
-                  className={`text-xs font-semibold uppercase tracking-wider ${txt3}`}
-                >
-                  Tipo de Página
-                </p>
-              </div>
-              <DonutChart
-                segments={pageTypeSegments}
-                centerLabel="Páginas"
-                centerValue={pageCount.toString()}
-                isDark={isDark}
-                txt={txt}
-                txt3={txt3}
-                size={150}
-              />
-            </div>
-
-            {/* Content Composition Donut */}
-            <div
-              className={`p-5 rounded-xl ${isDark ? "bg-white/[0.02]" : "bg-gray-50/60"}`}
-            >
-              <div className="flex items-center gap-2 mb-4">
-                <PieChart
-                  className={`w-4 h-4 ${isDark ? "text-indigo-400" : "text-indigo-600"}`}
-                />
-                <p
-                  className={`text-xs font-semibold uppercase tracking-wider ${txt3}`}
-                >
-                  Composição do Conteúdo
-                </p>
-              </div>
-              <DonutChart
-                segments={contentSegments}
-                centerLabel="Elementos"
-                centerValue={formatNumber(totalWords + stats.totalImages)}
-                isDark={isDark}
-                txt={txt}
-                txt3={txt3}
-                size={150}
-              />
-            </div>
-
-            {/* Content Distribution Stacked Bar */}
-            <div
-              className={`p-5 rounded-xl ${isDark ? "bg-white/[0.02]" : "bg-gray-50/60"}`}
-            >
-              <ContentDistributionBar
-                textPages={stats.textPages}
-                imagePages={stats.imageOnlyPages}
-                mixedPages={stats.mixedPages}
-                emptyPages={stats.emptyPages}
-                total={pageCount}
-                isDark={isDark}
-                txt3={txt3}
-              />
-
-              {/* Extra stats below */}
-              <div className={`mt-5 pt-4 border-t ${isDark ? "border-white/5" : "border-gray-200/60"}`}>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className={`text-[10px] uppercase tracking-wider ${txt3}`}>
-                      Página + densa
-                    </p>
-                    {stats.maxWordsPage && (
-                      <p className={`text-sm font-bold ${txt}`}>
-                        Pág. {stats.maxWordsPage.pageNumber}
-                        <span className={`text-[10px] font-normal ml-1 ${txt3}`}>
-                          ({formatNumber(stats.maxWordsPage.wordCount)} pal.)
-                        </span>
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <p className={`text-[10px] uppercase tracking-wider ${txt3}`}>
-                      Página - densa
-                    </p>
-                    {stats.minWordsPage && (
-                      <p className={`text-sm font-bold ${txt}`}>
-                        Pág. {stats.minWordsPage.pageNumber}
-                        <span className={`text-[10px] font-normal ml-1 ${txt3}`}>
-                          ({formatNumber(stats.minWordsPage.wordCount)} pal.)
-                        </span>
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <p className={`text-[10px] uppercase tracking-wider ${txt3}`}>
-                      Tipo de PDF
-                    </p>
-                    <p className={`text-sm font-bold ${txt}`}>
-                      {pdfType === "native-text"
-                        ? "Texto Nativo"
-                        : pdfType === "scanned-image"
-                          ? "Digitalizado"
-                          : pdfType === "mixed"
-                            ? "Misto"
-                            : "Vazio"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className={`text-[10px] uppercase tracking-wider ${txt3}`}>
-                      Eficiência
-                    </p>
-                    <p className={`text-sm font-bold ${txt}`}>
-                      {stats.bytesPerWord > 0
-                        ? `${formatNumber(stats.bytesPerWord)} B/palavra`
-                        : "N/A"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ---- Row 3: Word Density Chart ---- */}
-          {pages.length > 1 && (
-            <div
-              className={`p-5 rounded-xl ${isDark ? "bg-white/[0.02]" : "bg-gray-50/60"}`}
-            >
-              <WordDensityChart
-                pages={pages}
-                isDark={isDark}
-                txt={txt}
-                txt3={txt3}
-              />
-            </div>
-          )}
-
-          {/* ---- Row 4: Heatmap + Top Pages + Fields Chart ---- */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            {/* Heatmap */}
-            <div
-              className={`p-5 rounded-xl ${isDark ? "bg-white/[0.02]" : "bg-gray-50/60"}`}
-            >
-              {/* Metric selector */}
-              <div className="flex items-center gap-2 mb-4">
-                {(
-                  [
-                    { key: "words", label: "Palavras", icon: Type },
-                    { key: "characters", label: "Caracteres", icon: Hash },
-                    { key: "images", label: "Imagens", icon: Image },
-                  ] as const
-                ).map(({ key, label, icon: Icon }) => (
-                  <button
-                    key={key}
-                    onClick={() => setHeatmapMetric(key)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer
-                      ${heatmapMetric === key
-                        ? isDark
-                          ? "bg-indigo-500/20 text-indigo-400"
-                          : "bg-indigo-100 text-indigo-700"
-                        : isDark
-                          ? "bg-white/5 text-gray-500 hover:text-gray-300"
-                          : "bg-gray-100 text-gray-400 hover:text-gray-600"
-                      }`}
-                  >
-                    <Icon className="w-3 h-3" />
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              <PageHeatmap
-                pages={pages}
-                metric={heatmapMetric}
-                isDark={isDark}
-                txt={txt}
-                txt3={txt3}
-              />
-            </div>
-
-            {/* Right Column: Top Pages or Fields Chart */}
-            <div className="space-y-5">
-              {/* Top Pages */}
-              {pages.length > 1 && (
-                <div
-                  className={`p-5 rounded-xl ${isDark ? "bg-white/[0.02]" : "bg-gray-50/60"}`}
-                >
-                  {/* Metric selector */}
-                  <div className="flex items-center gap-2 mb-1">
-                    {(
-                      [
-                        { key: "words", label: "Palavras" },
-                        { key: "characters", label: "Caracteres" },
-                      ] as const
-                    ).map(({ key, label }) => (
-                      <button
-                        key={key}
-                        onClick={() => setRankMetric(key)}
-                        className={`px-2.5 py-1 rounded-md text-[10px] font-semibold transition-all cursor-pointer
-                          ${rankMetric === key
-                            ? isDark
-                              ? "bg-amber-500/20 text-amber-400"
-                              : "bg-amber-100 text-amber-700"
-                            : isDark
-                              ? "text-gray-500 hover:text-gray-300"
-                              : "text-gray-400 hover:text-gray-600"
-                          }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <TopPagesRanking
-                    pages={pages}
-                    metric={rankMetric}
-                    isDark={isDark}
-                    txt={txt}
-                    txt3={txt3}
-                  />
-                </div>
-              )}
-
-              {/* Extracted Fields Chart */}
-              {extractionSummary && (
-                <div
-                  className={`p-5 rounded-xl ${isDark ? "bg-white/[0.02]" : "bg-gray-50/60"}`}
-                >
-                  <div className="flex items-center gap-2 mb-4">
-                    <TrendingUp
-                      className={`w-4 h-4 ${isDark ? "text-emerald-400" : "text-emerald-600"}`}
-                    />
-                    <p
-                      className={`text-xs font-semibold uppercase tracking-wider ${txt3}`}
-                    >
-                      Campos Extraídos
-                    </p>
-                  </div>
-                  <FieldsBarChart
-                    summary={extractionSummary}
-                    isDark={isDark}
-                    txt={txt}
-                    txt3={txt3}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ---- Row 5: Per-page word count bars ---- */}
-          {pages.length > 1 && pages.length <= 50 && (
-            <div
-              className={`p-5 rounded-xl ${isDark ? "bg-white/[0.02]" : "bg-gray-50/60"}`}
-            >
-              <p
-                className={`text-xs font-semibold uppercase tracking-wider mb-4 ${txt3}`}
-              >
-                Palavras por Página (Detalhado)
-              </p>
-              <div className="space-y-2.5">
-                {pages.map((page, idx) => (
-                  <AnimatedBar
-                    key={page.pageNumber}
-                    value={page.wordCount}
-                    maxValue={
-                      stats.maxWordsPage ? stats.maxWordsPage.wordCount : 1
-                    }
-                    label={`Página ${page.pageNumber}`}
-                    sublabel={
-                      page.hasImages
-                        ? `📷 ${page.imageCount}`
-                        : undefined
-                    }
-                    color={
-                      page.hasText
-                        ? page.hasImages
-                          ? "linear-gradient(90deg, #f59e0b, #d97706)"
-                          : "linear-gradient(90deg, #6366f1, #4f46e5)"
-                        : "linear-gradient(90deg, #ef4444, #dc2626)"
-                    }
-                    isDark={isDark}
-                    txt={txt}
-                    txt3={txt3}
-                    index={idx}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      {isExpanded && content}
     </div>
   );
 }

@@ -41,10 +41,12 @@ import { PagePreviewSection } from "./features/pdf-view/components/PagePreview";
 import { ReportExporterSection } from "./features/export/components/ReportExporter";
 import { StatsDashboard } from "./features/analytics/components/StatsDashboard";
 import { TextSearchSection } from "./features/text-search/TextSearch";
+import { Modal } from "./components/ui/Modal";
 import { SmartFieldsSection } from "./components/pdf/SmartFieldsSection";
 import { SuitabilityGauge } from "./components/pdf/SuitabilityGauge";
 
 type AppState = "idle" | "analyzing" | "analyzed" | "converting" | "converted" | "error";
+type ModalType = "suitability" | "metadata" | "stats" | "extraction" | "search" | "export" | "preview" | "pages" | null;
 
 /* ================================================================
    MAIN APP COMPONENT
@@ -60,8 +62,10 @@ export function App() {
   const [progressMsgLocal, setProgressMsgLocal] = useState("");
   const [convertedUrl, setConvertedUrl] = useState("");
   const [dragOver, setDragOver] = useState(false);
-  const [expandedPages, setExpandedPages] = useState<Set<number>>(new Set());
   const [fileBuffer, setFileBuffer] = useState<ArrayBuffer | null>(null);
+  const [activeModal, setActiveModal] = useState<ModalType>(null);
+  // Expand/Collapse logic for pages overview inside modal
+  const [expandedPages, setExpandedPages] = useState<Set<number>>(new Set());
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -153,6 +157,9 @@ export function App() {
     setExpandedPages(new Set());
     if (convertedUrl) URL.revokeObjectURL(convertedUrl);
     if (fileInputRef.current) fileInputRef.current.value = "";
+    if (convertedUrl) URL.revokeObjectURL(convertedUrl);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    setActiveModal(null);
   }, [resetAnalysis, convertedUrl]);
 
   const togglePage = (n: number) => {
@@ -450,110 +457,190 @@ export function App() {
               )}
 
               {/* Analysis + Metadata */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                {/* Suitability Reasons */}
-                <div className={`${glassCard} rounded-2xl p-6 animate-fade-in-up animation-delay-400`}>
-                  <h3 className={`text-base font-bold mb-4 flex items-center gap-2.5 ${txt}`}>
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDark ? "bg-indigo-500/10" : "bg-indigo-50"}`}>
-                      <CheckCircle2 className={`w-4 h-4 ${isDark ? "text-indigo-400" : "text-indigo-600"}`} />
+              {/* REMOVED: Direct rendering of Analysis/Metadata/Modules. Replaced with Card Grid & Modals below */}
+
+              {/* GRID DE CARDS (8 cards) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in-up animation-delay-400">
+                {[
+                  { id: "suitability", icon: CheckCircle2, label: "Análise de Adequação", desc: "Detalhes e recomendações", color: "text-emerald-500", bg: "bg-emerald-500/10" },
+                  { id: "metadata", icon: Info, label: "Metadados", desc: "Propriedades do arquivo", color: "text-blue-500", bg: "bg-blue-500/10" },
+                  { id: "stats", icon: BarChart3, label: "Dashboard", desc: "Estatísticas completas", color: "text-purple-500", bg: "bg-purple-500/10" },
+                  { id: "extraction", icon: Zap, label: "Extração de Campos", desc: `${analysis.extractedFields?.fields.length || 0} campos identificados`, color: "text-amber-500", bg: "bg-amber-500/10" },
+                  { id: "search", icon: FileSearch, label: "Busca no Texto", desc: "Pesquisar conteúdo", color: "text-indigo-500", bg: "bg-indigo-500/10" },
+                  { id: "export", icon: Download, label: "Exportar Relatório", desc: "JSON, CSV ou TXT", color: "text-pink-500", bg: "bg-pink-500/10" },
+                  { id: "preview", icon: Image, label: "Preview Visual", desc: "Visualizar páginas", color: "text-cyan-500", bg: "bg-cyan-500/10" },
+                  { id: "pages", icon: Layers, label: "Visão Geral", desc: "Lista de páginas", color: "text-gray-500", bg: "bg-gray-500/10" },
+                ].map((card) => (
+                  <button
+                    key={card.id}
+                    onClick={() => setActiveModal(card.id as ModalType)}
+                    className={`${glassCard} p-5 rounded-2xl text-left transition-all duration-300 hover:scale-105 hover:shadow-lg group flex flex-col h-full`}
+                  >
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-colors ${card.bg} group-hover:bg-opacity-80`}>
+                      <card.icon className={`w-6 h-6 ${card.color}`} />
                     </div>
-                    Análise de Adequação
-                  </h3>
-                  <div className="space-y-2.5">
-                    {analysis.suitability.reasons.map((r, i) => (
-                      <div key={i} className={`flex items-start gap-2.5 text-sm ${txt2}`}>
-                        <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${r.includes("NÃO") || r.includes("Nenhum") ? "bg-red-500" : r.includes("mistura") || r.includes("Parcial") ? "bg-amber-500" : "bg-emerald-500"}`} />
-                        <span>{r}</span>
+                    <h3 className={`font-bold text-lg mb-1 ${txt}`}>{card.label}</h3>
+                    <p className={`text-xs ${txt3}`}>{card.desc}</p>
+                    <div className={`mt-auto pt-4 flex items-center text-xs font-medium ${card.color} opacity-0 group-hover:opacity-100 transition-opacity`}>
+                      Ver detalhes <ArrowRight className="w-3 h-3 ml-1" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {/* --- MODALS --- */}
+
+              {/* 1. Suitability Modal */}
+              <Modal
+                isOpen={activeModal === "suitability"}
+                onClose={() => setActiveModal(null)}
+                title="Análise de Adequação Detalhada"
+                isDark={isDark}
+              >
+                <div className="space-y-6">
+                  <div className={`${glassCard} rounded-2xl p-6`}>
+                    <h3 className={`text-base font-bold mb-4 flex items-center gap-2.5 ${txt}`}>
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDark ? "bg-indigo-500/10" : "bg-indigo-50"}`}>
+                        <CheckCircle2 className={`w-4 h-4 ${isDark ? "text-indigo-400" : "text-indigo-600"}`} />
                       </div>
-                    ))}
+                      Critérios de Adequação
+                    </h3>
+                    <div className="space-y-2.5">
+                      {analysis.suitability.reasons.map((r, i) => (
+                        <div key={i} className={`flex items-start gap-2.5 text-sm ${txt2}`}>
+                          <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${r.includes("NÃO") || r.includes("Nenhum") ? "bg-red-500" : r.includes("mistura") || r.includes("Parcial") ? "bg-amber-500" : "bg-emerald-500"}`} />
+                          <span>{r}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
+
                   {analysis.suitability.recommendations.length > 0 && (
-                    <div className={`mt-5 pt-5 border-t ${isDark ? "border-white/5" : "border-gray-200/80"}`}>
-                      <p className={`text-xs font-semibold uppercase tracking-wider mb-3 ${txt3}`}>Recomendações</p>
-                      <div className="space-y-2">
+                    <div className={`${glassCard} rounded-2xl p-6`}>
+                      <h3 className={`text-base font-bold mb-4 ${txt}`}>Recomendações</h3>
+                      <div className="space-y-3">
                         {analysis.suitability.recommendations.map((r, i) => (
-                          <div key={i} className={`flex items-start gap-2.5 text-sm ${txt2}`}>
-                            <ArrowRight className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${isDark ? "text-indigo-400" : "text-indigo-500"}`} />
-                            <span>{r}</span>
+                          <div key={i} className={`flex items-start gap-3 text-sm ${txt2}`}>
+                            <div className={`p-1 rounded-full ${isDark ? "bg-indigo-500/20 text-indigo-400" : "bg-indigo-100 text-indigo-600"}`}>
+                              <ArrowRight className="w-3 h-3" />
+                            </div>
+                            <span className="leading-relaxed">{r}</span>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
                 </div>
+              </Modal>
 
-                {/* Metadata */}
-                <div className={`${glassCard} rounded-2xl p-6 animate-fade-in-up animation-delay-600`}>
-                  <h3 className={`text-base font-bold mb-4 flex items-center gap-2.5 ${txt}`}>
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDark ? "bg-indigo-500/10" : "bg-indigo-50"}`}>
-                      <Info className={`w-4 h-4 ${isDark ? "text-indigo-400" : "text-indigo-600"}`} />
-                    </div>
-                    Metadados do Documento
-                  </h3>
-                  <div className="space-y-3">
+              {/* 2. Metadata Modal */}
+              <Modal
+                isOpen={activeModal === "metadata"}
+                onClose={() => setActiveModal(null)}
+                title="Metadados do Arquivo"
+                isDark={isDark}
+              >
+                <div className={`${glassCard} rounded-2xl p-6`}>
+                  <div className="grid grid-cols-1 gap-y-4">
                     {Object.entries(analysis.metadata).map(([key, value]) => (
-                      <div key={key} className={`flex justify-between items-start gap-4 py-1.5 border-b last:border-0 ${isDark ? "border-white/5" : "border-gray-100"}`}>
-                        <span className={`text-xs font-medium flex-shrink-0 ${txt3}`}>{key}</span>
-                        <span className={`text-sm text-right font-medium truncate max-w-[60%] ${txt}`} title={value}>{value}</span>
+                      <div key={key} className={`flex flex-col sm:flex-row justify-between sm:items-center gap-2 pb-3 border-b border-dashed ${isDark ? "border-white/10" : "border-gray-200"}`}>
+                        <span className={`text-sm font-medium ${txt3}`}>{key}</span>
+                        <span className={`text-sm font-semibold text-right ${txt} break-all bg-opacity-50 px-2 py-1 rounded ${isDark ? "bg-white/5" : "bg-gray-100"}`}>{value}</span>
                       </div>
                     ))}
-                    <div className={`flex justify-between items-start gap-4 py-1.5`}>
-                      <span className={`text-xs font-medium flex-shrink-0 ${txt3}`}>Versão PDF</span>
-                      <span className={`text-sm text-right font-medium ${txt}`}>{analysis.pdfVersion}</span>
+                    <div className={`flex flex-col sm:flex-row justify-between sm:items-center gap-2 pt-2`}>
+                      <span className={`text-sm font-medium ${txt3}`}>Versão PDF</span>
+                      <span className={`text-sm font-semibold text-right ${txt} px-2 py-1 rounded ${isDark ? "bg-white/5" : "bg-gray-100"}`}>{analysis.pdfVersion}</span>
                     </div>
                   </div>
                 </div>
-              </div>
+              </Modal>
 
-              {/* MODULES */}
-
-              {/* Smart Field Extraction */}
-              {analysis.extractedFields && (
-                <SmartFieldsSection extraction={analysis.extractedFields} isDark={isDark} glassCard={glassCard} txt={txt} txt2={txt2} txt3={txt3} />
-              )}
-
-              {/* Text Search */}
-              <TextSearchSection pages={analysis.pages} isDark={isDark} glassCard={glassCard} txt={txt} txt2={txt2} txt3={txt3} />
-
-              {/* Report Exporter */}
-              <ReportExporterSection analysis={analysis} isDark={isDark} glassCard={glassCard} txt={txt} txt2={txt2} txt3={txt3} />
-
-              {/* Stats Dashboard */}
-              <StatsDashboard
-                pages={analysis.pages}
-                totalCharacters={analysis.totalCharacters}
-                totalWords={analysis.totalWords}
-                fileSize={analysis.fileSize}
-                pageCount={analysis.pageCount}
-                hasText={analysis.hasText}
-                hasImages={analysis.hasImages}
-                pdfType={analysis.pdfType}
-                extractionSummary={analysis.extractedFields?.summary ?? null}
+              {/* 3. Stats Modal */}
+              <Modal
+                isOpen={activeModal === "stats"}
+                onClose={() => setActiveModal(null)}
+                title="Dashboard de Estatísticas"
                 isDark={isDark}
-                glassCard={glassCard}
-                txt={txt}
-                txt2={txt2}
-                txt3={txt3}
-              />
+                maxWidth="max-w-6xl"
+              >
+                <StatsDashboard
+                  pages={analysis.pages}
+                  totalCharacters={analysis.totalCharacters}
+                  totalWords={analysis.totalWords}
+                  fileSize={analysis.fileSize}
+                  pageCount={analysis.pageCount}
+                  hasText={analysis.hasText}
+                  hasImages={analysis.hasImages}
+                  pdfType={analysis.pdfType}
+                  extractionSummary={analysis.extractedFields?.summary ?? null}
+                  isDark={isDark}
+                  glassCard={glassCard}
+                  txt={txt}
+                  txt2={txt2}
+                  txt3={txt3}
+                  embedded={true}
+                />
+              </Modal>
 
-              {/* Page Preview */}
-              {fileBuffer && (
-                <PagePreviewSection fileArrayBuffer={fileBuffer} pageCount={analysis.pageCount} isDark={isDark} glassCard={glassCard} txt={txt} txt2={txt2} txt3={txt3} />
-              )}
+              {/* 4. Extraction Modal */}
+              <Modal
+                isOpen={activeModal === "extraction"}
+                onClose={() => setActiveModal(null)}
+                title="Extração Inteligente"
+                isDark={isDark}
+                maxWidth="max-w-6xl"
+              >
+                {analysis.extractedFields ? (
+                  <SmartFieldsSection extraction={analysis.extractedFields} isDark={isDark} glassCard={glassCard} txt={txt} txt2={txt2} txt3={txt3} initialExpanded={true} embedded={true} />
+                ) : (
+                  <div className="p-10 text-center text-gray-500">Nenhum campo extraído automaticamente.</div>
+                )}
+              </Modal>
 
-              {/* Pages Overview */}
-              <div className={`${glassCard} rounded-2xl p-6 animate-fade-in-up animation-delay-600`}>
-                <h3 className={`text-base font-bold mb-5 flex items-center gap-2.5 ${txt}`}>
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDark ? "bg-indigo-500/10" : "bg-indigo-50"}`}>
-                    <Layers className={`w-4 h-4 ${isDark ? "text-indigo-400" : "text-indigo-600"}`} />
-                  </div>
-                  Visão Geral das Páginas
-                  <span className={`ml-auto text-xs font-normal px-3 py-1 rounded-full ${isDark ? "bg-white/5 text-gray-400" : "bg-gray-100 text-gray-500"}`}>
-                    {analysis.pageCount} página{analysis.pageCount !== 1 ? "s" : ""}
-                  </span>
-                </h3>
+              {/* 5. Search Modal */}
+              <Modal
+                isOpen={activeModal === "search"}
+                onClose={() => setActiveModal(null)}
+                title="Busca no Conteúdo"
+                isDark={isDark}
+                maxWidth="max-w-5xl"
+              >
+                <TextSearchSection pages={analysis.pages} isDark={isDark} glassCard={glassCard} txt={txt} txt2={txt2} txt3={txt3} initialExpanded={true} embedded={true} />
+              </Modal>
 
-                <div className="space-y-2.5">
+              {/* 6. Export Modal */}
+              <Modal
+                isOpen={activeModal === "export"}
+                onClose={() => setActiveModal(null)}
+                title="Exportar Dados"
+                isDark={isDark}
+              >
+                <ReportExporterSection analysis={analysis} isDark={isDark} glassCard={glassCard} txt={txt} txt2={txt2} txt3={txt3} embedded={true} />
+              </Modal>
+
+              {/* 7. Preview Modal */}
+              <Modal
+                isOpen={activeModal === "preview"}
+                onClose={() => setActiveModal(null)}
+                title="Visualização das Páginas"
+                isDark={isDark}
+                maxWidth="max-w-7xl"
+              >
+                {fileBuffer && (
+                  <PagePreviewSection fileArrayBuffer={fileBuffer} pageCount={analysis.pageCount} isDark={isDark} glassCard={glassCard} txt={txt} txt2={txt2} txt3={txt3} embedded={true} />
+                )}
+              </Modal>
+
+              {/* 8. Pages Overview Modal */}
+              <Modal
+                isOpen={activeModal === "pages"}
+                onClose={() => setActiveModal(null)}
+                title={`Visão Geral (${analysis.pageCount} páginas)`}
+                isDark={isDark}
+                maxWidth="max-w-5xl"
+              >
+                <div className="space-y-3">
                   {analysis.pages.map((page) => (
                     <div key={page.pageNumber} className={`rounded-xl transition-all duration-200 ${isDark ? "bg-white/[0.03] hover:bg-white/[0.06]" : "bg-gray-50/80 hover:bg-gray-100"}`}>
                       <div className="flex items-center justify-between p-4 cursor-pointer select-none" onClick={() => togglePage(page.pageNumber)}>
@@ -595,7 +682,7 @@ export function App() {
                     </div>
                   ))}
                 </div>
-              </div>
+              </Modal>
 
               {/* File Info Footer */}
               <div className={`${glassCard} rounded-2xl p-4`}>

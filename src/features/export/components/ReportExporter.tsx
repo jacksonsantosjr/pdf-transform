@@ -49,6 +49,7 @@ interface Props {
   txt: string;
   txt2: string;
   txt3: string;
+  embedded?: boolean;
 }
 
 /* ---- Helpers ---- */
@@ -623,6 +624,7 @@ export function ReportExporterSection({
   txt,
   txt2,
   txt3,
+  embedded = false,
 }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [format, setFormat] = useState<ExportFormat>("json");
@@ -717,6 +719,246 @@ export function ReportExporterSection({
   // Report line count for preview
   const lineCount = reportContent.split("\n").length;
 
+  const content = (
+    <div
+      className={embedded ? "space-y-5" : `border-t px-6 pb-6 space-y-5 ${isDark ? "border-white/5" : "border-gray-200/60"}`}
+    >
+      {/* Format Selector */}
+      <div className={embedded ? "" : "pt-5"}>
+        <p
+          className={`text-xs font-semibold uppercase tracking-wider mb-3 ${txt3}`}
+        >
+          Formato de Exportação
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <FormatCard
+            format="json"
+            label="JSON"
+            description="Estruturado e programável"
+            icon={FileJson}
+            color="#f59e0b"
+            bgColor={isDark ? "rgba(245,158,11,0.12)" : "rgba(245,158,11,0.08)"}
+            isActive={format === "json"}
+            isDark={isDark}
+            txt={txt}
+            txt3={txt3}
+            onClick={setFormat}
+          />
+          <FormatCard
+            format="csv"
+            label="CSV"
+            description="Compatível com Excel"
+            icon={FileSpreadsheet}
+            color="#10b981"
+            bgColor={isDark ? "rgba(16,185,129,0.12)" : "rgba(16,185,129,0.08)"}
+            isActive={format === "csv"}
+            isDark={isDark}
+            txt={txt}
+            txt3={txt3}
+            onClick={setFormat}
+          />
+          <FormatCard
+            format="txt"
+            label="TXT"
+            description="Texto simples e legível"
+            icon={FileText}
+            color="#3b82f6"
+            bgColor={isDark ? "rgba(59,130,246,0.12)" : "rgba(59,130,246,0.08)"}
+            isActive={format === "txt"}
+            isDark={isDark}
+            txt={txt}
+            txt3={txt3}
+            onClick={setFormat}
+          />
+        </div>
+      </div>
+
+      {/* Options & Preview Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Options Column */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between mb-1">
+            <p className={`text-xs font-semibold uppercase tracking-wider ${txt3}`}>
+              Conteúdo do Relatório
+            </p>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded ${isDark ? "bg-white/10 text-gray-400" : "bg-gray-100/80 text-gray-500"}`}>
+              {includedSections} seções selecionadas
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            <OptionToggle
+              label="Metadados"
+              description="Informações do arquivo e propriedades"
+              icon={Hash}
+              enabled={options.includeMetadata}
+              isDark={isDark}
+              txt={txt}
+              txt3={txt3}
+              onToggle={() => toggleOption("includeMetadata")}
+            />
+            <OptionToggle
+              label="Estatísticas"
+              description="Contagens de palavras, imagens, etc."
+              icon={Calendar}
+              enabled={options.includeStatistics}
+              isDark={isDark}
+              txt={txt}
+              txt3={txt3}
+              onToggle={() => toggleOption("includeStatistics")}
+            />
+            <OptionToggle
+              label="Adequação"
+              description="Score, análise e recomendações"
+              icon={Shield}
+              enabled={options.includeSuitability}
+              isDark={isDark}
+              txt={txt}
+              txt3={txt3}
+              onToggle={() => toggleOption("includeSuitability")}
+            />
+            <OptionToggle
+              label="Campos Extraídos"
+              description="Dados estruturados identificados"
+              icon={Layers}
+              enabled={options.includeExtractedFields}
+              isDark={isDark}
+              txt={txt}
+              txt3={txt3}
+              onToggle={() => toggleOption("includeExtractedFields")}
+            />
+            <OptionToggle
+              label="Detalhes por Página"
+              description="Dimensões e resumo por página"
+              icon={Type}
+              enabled={options.includePageDetails}
+              isDark={isDark}
+              txt={txt}
+              txt3={txt3}
+              onToggle={() => toggleOption("includePageDetails")}
+            />
+            <OptionToggle
+              label="Texto Completo"
+              description="Incluir todo o texto extraído"
+              icon={FileText}
+              enabled={options.includeFullText}
+              isDark={isDark}
+              txt={txt}
+              txt3={txt3}
+              onToggle={() => toggleOption("includeFullText")}
+            />
+          </div>
+        </div>
+
+        {/* Preview Column */}
+        <div className="flex flex-col h-full min-h-[300px]">
+          <div className="flex items-center justify-between mb-3">
+            <p className={`text-xs font-semibold uppercase tracking-wider ${txt3}`}>
+              Preview do Arquivo
+            </p>
+            <div className="flex items-center gap-2">
+              <span className={`text-[10px] ${txt3}`}>
+                ~{lineCount} linhas
+              </span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${isDark ? "bg-white/10 text-gray-400" : "bg-gray-100 text-gray-500"}`}>
+                {reportSize}
+              </span>
+            </div>
+          </div>
+
+          <div
+            className={`relative flex-1 rounded-xl border flex flex-col overflow-hidden transition-all duration-300 group
+              ${isDark ? "bg-[#0d1117] border-white/10" : "bg-white border-gray-200 shadow-sm"}`}
+          >
+            {/* Code Preview Header */}
+            <div className={`flex items-center justify-between px-3 py-2 border-b ${isDark ? "bg-white/[0.02] border-white/5" : "bg-gray-50/50 border-gray-100"}`}>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full bg-red-500/20 border border-red-500/50" />
+                <div className="w-2.5 h-2.5 rounded-full bg-amber-500/20 border border-amber-500/50" />
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/20 border border-emerald-500/50" />
+              </div>
+              <div className={`text-[10px] font-mono opacity-50 ${txt}`}>
+                preview.{format}
+              </div>
+            </div>
+
+            {/* Code Content */}
+            <div className="flex-1 relative overflow-hidden">
+              <div className="absolute inset-0 overflow-auto custom-scrollbar p-3">
+                <pre className={`text-[11px] leading-relaxed font-mono ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                  {reportContent}
+                </pre>
+              </div>
+
+              {/* Overlay Gradient for Scroll hint */}
+              <div className={`absolute bottom-0 left-0 right-0 h-8 pointer-events-none bg-gradient-to-t ${isDark ? "from-[#0d1117]" : "from-white"}`} />
+            </div>
+
+            {/* Action Bar (Preview Bottom) */}
+            <div className={`p-2 border-t flex items-center justify-end gap-2 ${isDark ? "bg-white/[0.02] border-white/5" : "bg-gray-50/50 border-gray-100"}`}>
+              <button
+                onClick={handleCopy}
+                className={`p-1.5 rounded-lg transition-all ${copied
+                  ? "bg-emerald-500/10 text-emerald-500"
+                  : isDark
+                    ? "text-gray-400 hover:text-white hover:bg-white/10"
+                    : "text-gray-500 hover:text-gray-800 hover:bg-gray-200"
+                  }`}
+                title="Copiar conteúdo"
+              >
+                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Action Button */}
+      <div className="pt-2">
+        <button
+          onClick={handleDownload}
+          className={`w-full relative group overflow-hidden rounded-xl p-[1px] shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-[1.01]
+            ${format === "json"
+              ? "shadow-amber-500/20"
+              : format === "csv"
+                ? "shadow-emerald-500/20"
+                : "shadow-blue-500/20"
+            }`}
+        >
+          <div
+            className={`absolute inset-0 opacity-80 group-hover:opacity-100 transition-opacity duration-300
+              ${format === "json"
+                ? "bg-gradient-to-r from-amber-500 to-orange-600"
+                : format === "csv"
+                  ? "bg-gradient-to-r from-emerald-500 to-teal-600"
+                  : "bg-gradient-to-r from-blue-500 to-indigo-600"
+              }`}
+          />
+          <div className="relative flex items-center justify-center gap-2 px-6 py-3.5 bg-black/0 text-white font-bold">
+            {exported ? (
+              <>
+                <Check className="w-5 h-5 animate-bounce-subtle" />
+                <span>Download Iniciado!</span>
+              </>
+            ) : (
+              <>
+                <Download className="w-5 h-5 group-hover:translate-y-0.5 transition-transform duration-300" />
+                <span>Baixar Relatório Completo</span>
+              </>
+            )}
+          </div>
+        </button>
+        <p className={`text-center text-[10px] mt-2.5 opacity-60 ${txt3}`}>
+          O arquivo será salvo no seu dispositivo localmente.
+        </p>
+      </div>
+    </div>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
   return (
     <div
       className={`${glassCard} rounded-2xl overflow-hidden animate-fade-in-up animation-delay-400`}
@@ -759,306 +1001,7 @@ export function ReportExporterSection({
       </button>
 
       {/* Expanded Content */}
-      {isExpanded && (
-        <div
-          className={`border-t px-6 pb-6 space-y-5 ${isDark ? "border-white/5" : "border-gray-200/60"}`}
-        >
-          {/* Format Selector */}
-          <div className="pt-5">
-            <p
-              className={`text-xs font-semibold uppercase tracking-wider mb-3 ${txt3}`}
-            >
-              Formato de Exportação
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <FormatCard
-                format="json"
-                label="JSON"
-                description="Estruturado e programável"
-                icon={FileJson}
-                color="#f59e0b"
-                bgColor={isDark ? "rgba(245,158,11,0.12)" : "rgba(245,158,11,0.08)"}
-                isActive={format === "json"}
-                isDark={isDark}
-                txt={txt}
-                txt3={txt3}
-                onClick={setFormat}
-              />
-              <FormatCard
-                format="csv"
-                label="CSV"
-                description="Compatível com Excel"
-                icon={FileSpreadsheet}
-                color="#10b981"
-                bgColor={isDark ? "rgba(16,185,129,0.12)" : "rgba(16,185,129,0.08)"}
-                isActive={format === "csv"}
-                isDark={isDark}
-                txt={txt}
-                txt3={txt3}
-                onClick={setFormat}
-              />
-              <FormatCard
-                format="txt"
-                label="TXT"
-                description="Relatório legível"
-                icon={FileText}
-                color="#6366f1"
-                bgColor={isDark ? "rgba(99,102,241,0.12)" : "rgba(99,102,241,0.08)"}
-                isActive={format === "txt"}
-                isDark={isDark}
-                txt={txt}
-                txt3={txt3}
-                onClick={setFormat}
-              />
-            </div>
-          </div>
-
-          {/* Options Toggle */}
-          <div>
-            <button
-              onClick={() => setShowOptions(!showOptions)}
-              className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-wider mb-3 cursor-pointer transition-all duration-200
-                ${isDark ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-700"}`}
-            >
-              <Settings2 className="w-3.5 h-3.5" />
-              Personalizar Conteúdo
-              <ChevronDown
-                className={`w-3.5 h-3.5 transition-transform duration-200 ${showOptions ? "rotate-180" : ""}`}
-              />
-              <span
-                className={`ml-1 px-2 py-0.5 rounded-full text-[10px] font-bold
-                  ${isDark ? "bg-indigo-500/15 text-indigo-400" : "bg-indigo-100 text-indigo-700"}`}
-              >
-                {includedSections} de 6
-              </span>
-            </button>
-
-            {showOptions && (
-              <div
-                className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 animate-fade-in-up"
-                style={{ animationDuration: "0.2s" }}
-              >
-                <OptionToggle
-                  label="Metadados"
-                  description="Título, autor, datas, produtor"
-                  icon={Calendar}
-                  enabled={options.includeMetadata}
-                  isDark={isDark}
-                  txt={txt}
-                  txt3={txt3}
-                  onToggle={() => toggleOption("includeMetadata")}
-                />
-                <OptionToggle
-                  label="Adequação"
-                  description="Score, nível, razões e recomendações"
-                  icon={Shield}
-                  enabled={options.includeSuitability}
-                  isDark={isDark}
-                  txt={txt}
-                  txt3={txt3}
-                  onToggle={() => toggleOption("includeSuitability")}
-                />
-                <OptionToggle
-                  label="Estatísticas"
-                  description="Distribuição, médias, tempo leitura"
-                  icon={Hash}
-                  enabled={options.includeStatistics}
-                  isDark={isDark}
-                  txt={txt}
-                  txt3={txt3}
-                  onToggle={() => toggleOption("includeStatistics")}
-                />
-                <OptionToggle
-                  label="Campos Extraídos"
-                  description="CPF, CNPJ, e-mails, telefones, etc."
-                  icon={Sparkles}
-                  enabled={options.includeExtractedFields}
-                  isDark={isDark}
-                  txt={txt}
-                  txt3={txt3}
-                  onToggle={() => toggleOption("includeExtractedFields")}
-                />
-                <OptionToggle
-                  label="Detalhes por Página"
-                  description="Dimensões, palavras, imagens por página"
-                  icon={Layers}
-                  enabled={options.includePageDetails}
-                  isDark={isDark}
-                  txt={txt}
-                  txt3={txt3}
-                  onToggle={() => toggleOption("includePageDetails")}
-                />
-                <OptionToggle
-                  label="Texto Completo"
-                  description="Inclui o texto extraído de cada página"
-                  icon={Type}
-                  enabled={options.includeFullText}
-                  isDark={isDark}
-                  txt={txt}
-                  txt3={txt3}
-                  onToggle={() => toggleOption("includeFullText")}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Report Summary */}
-          <div
-            className={`flex flex-wrap items-center gap-x-5 gap-y-2 p-4 rounded-xl ${isDark ? "bg-white/[0.03]" : "bg-gray-50/80"}`}
-          >
-            <div className="flex items-center gap-2">
-              <FileText className={`w-4 h-4 ${txt3}`} />
-              <span className={`text-xs ${txt2}`}>
-                <span className={`font-bold ${txt}`}>{lineCount}</span> linhas
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Image className={`w-4 h-4 ${txt3}`} />
-              <span className={`text-xs ${txt2}`}>
-                <span className={`font-bold ${txt}`}>{reportSize}</span>
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Layers className={`w-4 h-4 ${txt3}`} />
-              <span className={`text-xs ${txt2}`}>
-                <span className={`font-bold ${txt}`}>{includedSections}</span>{" "}
-                seções
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Clock className={`w-4 h-4 ${txt3}`} />
-              <span className={`text-xs ${txt2}`}>
-                {formatTimestamp().split(" ")[1]}
-              </span>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            {/* Download Button */}
-            <button
-              onClick={handleDownload}
-              className={`flex-1 flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl font-semibold text-sm transition-all duration-300 cursor-pointer
-                ${exported
-                  ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25"
-                  : "bg-gradient-to-r from-rose-500 to-pink-600 text-white hover:shadow-xl hover:shadow-rose-500/25 hover:scale-[1.02]"
-                }`}
-            >
-              {exported ? (
-                <>
-                  <Check className="w-5 h-5" />
-                  Relatório Exportado!
-                </>
-              ) : (
-                <>
-                  <Download className="w-5 h-5" />
-                  Baixar Relatório .{format.toUpperCase()}
-                </>
-              )}
-            </button>
-
-            {/* Copy Button */}
-            <button
-              onClick={handleCopy}
-              className={`flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer
-                ${copied
-                  ? "bg-emerald-500/15 text-emerald-500"
-                  : isDark
-                    ? "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
-                    : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700"
-                }`}
-            >
-              {copied ? (
-                <>
-                  <Check className="w-4 h-4" />
-                  Copiado!
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4" />
-                  Copiar
-                </>
-              )}
-            </button>
-
-            {/* Preview Toggle */}
-            <button
-              onClick={() => setShowPreview(!showPreview)}
-              className={`flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer
-                ${showPreview
-                  ? isDark
-                    ? "bg-indigo-500/15 text-indigo-400 ring-1 ring-indigo-500/30"
-                    : "bg-indigo-100 text-indigo-700 ring-1 ring-indigo-200"
-                  : isDark
-                    ? "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
-                    : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700"
-                }`}
-            >
-              {showPreview ? (
-                <>
-                  <EyeOff className="w-4 h-4" />
-                  Ocultar
-                </>
-              ) : (
-                <>
-                  <Eye className="w-4 h-4" />
-                  Preview
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Preview Panel */}
-          {showPreview && (
-            <div
-              className="animate-fade-in-up"
-              style={{ animationDuration: "0.25s" }}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <p
-                  className={`text-xs font-semibold uppercase tracking-wider ${txt3}`}
-                >
-                  Preview do Relatório ({format.toUpperCase()})
-                </p>
-                <span className={`text-[10px] ${txt3}`}>
-                  {lineCount} linhas · {reportSize}
-                </span>
-              </div>
-              <div
-                className={`relative rounded-xl overflow-hidden border ${isDark ? "border-white/5" : "border-gray-200"}`}
-              >
-                {/* Syntax highlight bar */}
-                <div
-                  className={`flex items-center gap-2 px-4 py-2.5 ${isDark ? "bg-gray-800/80" : "bg-gray-100"}`}
-                >
-                  <div className="flex gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-red-400/70" />
-                    <div className="w-3 h-3 rounded-full bg-amber-400/70" />
-                    <div className="w-3 h-3 rounded-full bg-emerald-400/70" />
-                  </div>
-                  <span className={`text-[10px] font-mono ml-2 ${txt3}`}>
-                    {analysis.fileName.replace(/\.pdf$/i, "")}_relatorio.
-                    {format}
-                  </span>
-                </div>
-
-                {/* Content */}
-                <pre
-                  className={`p-4 text-xs leading-relaxed overflow-auto max-h-96 font-mono whitespace-pre-wrap break-words
-                    ${isDark ? "bg-gray-900/50 text-gray-300" : "bg-white text-gray-700"}`}
-                >
-                  {reportContent.slice(0, 5000)}
-                  {reportContent.length > 5000 && (
-                    <span className={`${txt3} italic`}>
-                      {"\n\n"}... ({lineCount - reportContent.slice(0, 5000).split("\n").length} linhas restantes — baixe para ver o conteúdo completo)
-                    </span>
-                  )}
-                </pre>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      {isExpanded && content}
     </div>
   );
 }

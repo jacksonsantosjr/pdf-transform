@@ -48,6 +48,8 @@ interface Props {
   txt: string;
   txt2: string;
   txt3: string;
+  initialExpanded?: boolean;
+  embedded?: boolean;
 }
 
 /* ---- Constants ---- */
@@ -335,8 +337,8 @@ function PageGroup({
    MAIN TEXT SEARCH SECTION COMPONENT
    ================================================================ */
 
-export function TextSearchSection({ pages, isDark, glassCard, txt, txt2, txt3 }: Props) {
-  const [isExpanded, setIsExpanded] = useState(false);
+export function TextSearchSection({ pages, isDark, glassCard, txt, txt2, txt3, initialExpanded = false, embedded = false }: Props) {
+  const [isExpanded, setIsExpanded] = useState(embedded ? true : initialExpanded);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [options, setOptions] = useState<SearchOptions>({
@@ -573,6 +575,234 @@ export function TextSearchSection({ pages, isDark, glassCard, txt, txt2, txt3 }:
 
   const hasText = totalText.chars > 0;
 
+  const content = (
+    <div
+      className={embedded ? "" : `border-t px-6 pb-6 ${isDark ? "border-white/5" : "border-gray-200/60"}`}
+    >
+      {!hasText ? (
+        <div className={`py-8 text-center ${txt3}`}>
+          <FileText className="w-10 h-10 mx-auto mb-3 opacity-40" />
+          <p className={`text-sm font-medium ${txt2}`}>
+            Nenhum texto disponível
+          </p>
+          <p className="text-xs mt-1">
+            O documento não contém texto extraível para pesquisa.
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Search Input */}
+          <div className="pt-5 pb-4">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search
+                  className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 ${txt3}`}
+                />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Digite para pesquisar no texto do PDF..."
+                  className={`w-full pl-11 pr-10 py-3 text-sm rounded-xl border outline-none transition-all duration-200
+                        ${isDark
+                      ? "bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-amber-500/50 focus:bg-white/[0.07] focus:ring-2 focus:ring-amber-500/10"
+                      : "bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                    }
+                        ${regexError ? (isDark ? "border-red-500/50" : "border-red-300") : ""}`}
+                  autoFocus
+                />
+                {query && (
+                  <button
+                    onClick={() => {
+                      setQuery("");
+                      setDebouncedQuery("");
+                      searchInputRef.current?.focus();
+                    }}
+                    className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md transition-all duration-200 cursor-pointer
+                          ${isDark ? "text-gray-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              {/* Options toggle */}
+              <button
+                onClick={() => setShowOptions(!showOptions)}
+                className={`p-3 rounded-xl transition-all duration-200 cursor-pointer
+                      ${showOptions
+                    ? isDark
+                      ? "bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/30"
+                      : "bg-amber-100 text-amber-700 ring-1 ring-amber-200"
+                    : isDark
+                      ? "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
+                      : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700"
+                  }`}
+                title="Opções de busca"
+              >
+                <Settings2 className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Regex error */}
+            {regexError && (
+              <p className="text-xs text-red-500 mt-2 flex items-center gap-1.5">
+                <X className="w-3.5 h-3.5" />
+                {regexError}
+              </p>
+            )}
+
+            {/* Options panel */}
+            {showOptions && (
+              <div
+                className={`flex flex-wrap gap-2 mt-3 p-3 rounded-xl ${isDark ? "bg-white/[0.03]" : "bg-gray-50"
+                  }`}
+              >
+                {[
+                  {
+                    key: "caseSensitive" as keyof SearchOptions,
+                    icon: CaseSensitive,
+                    label: "Diferenciar maiúsculas",
+                    shortLabel: "Aa",
+                  },
+                  {
+                    key: "wholeWord" as keyof SearchOptions,
+                    icon: WholeWord,
+                    label: "Palavra inteira",
+                    shortLabel: "Ab",
+                  },
+                  {
+                    key: "useRegex" as keyof SearchOptions,
+                    icon: Regex,
+                    label: "Expressão regular",
+                    shortLabel: ".*",
+                  },
+                ].map(({ key, icon: Icon, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => toggleOption(key)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer
+                          ${options[key]
+                        ? isDark
+                          ? "bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/30"
+                          : "bg-amber-100 text-amber-700 ring-1 ring-amber-200"
+                        : isDark
+                          ? "bg-white/5 text-gray-400 hover:bg-white/10"
+                          : "bg-white text-gray-500 hover:bg-gray-100"
+                      }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {label}
+                  </button>
+                ))}
+
+                <div
+                  className={`w-full text-[10px] mt-1 ${txt3} flex items-center gap-1.5`}
+                >
+                  <Hash className="w-3 h-3" />
+                  Enter = próximo · Shift+Enter = anterior · Esc = limpar
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Results summary bar */}
+          {debouncedQuery.trim() && (
+            <div
+              className={`flex items-center justify-between gap-3 py-3 px-4 mb-4 rounded-xl ${isDark ? "bg-white/[0.03]" : "bg-gray-50"
+                }`}
+            >
+              <div className="flex items-center gap-3">
+                <span className={`text-sm font-medium ${txt2}`}>
+                  {searchResults.length > 0 ? (
+                    <>
+                      <span className={`font-bold ${txt}`}>
+                        {searchResults.length}
+                      </span>{" "}
+                      resultado
+                      {searchResults.length !== 1 ? "s" : ""} em{" "}
+                      <span className={`font-bold ${txt}`}>
+                        {pagesWithMatches.size}
+                      </span>{" "}
+                      página{pagesWithMatches.size !== 1 ? "s" : ""}
+                      {searchResults.length >= 500 && (
+                        <span className={`text-xs ml-1 ${txt3}`}>
+                          (limite de 500)
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <span className={txt3}>
+                      Nenhum resultado encontrado para &ldquo;
+                      {debouncedQuery}&rdquo;
+                    </span>
+                  )}
+                </span>
+              </div>
+
+              {/* Navigation arrows */}
+              {searchResults.length > 1 && (
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-xs font-medium mr-2 ${txt3}`}>
+                    {activeResultIndex + 1}/{searchResults.length}
+                  </span>
+                  <button
+                    onClick={goToPrev}
+                    className={`p-1.5 rounded-lg transition-all
+                          ${isDark
+                        ? "bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white"
+                        : "bg-white hover:bg-gray-100 text-gray-500 hover:text-gray-900 border border-gray-200"
+                      }`}
+                    title="Anterior (Shift+Enter)"
+                  >
+                    <ChevronUp className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={goToNext}
+                    className={`p-1.5 rounded-lg transition-all
+                          ${isDark
+                        ? "bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white"
+                        : "bg-white hover:bg-gray-100 text-gray-500 hover:text-gray-900 border border-gray-200"
+                      }`}
+                    title="Próximo (Enter)"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Results List */}
+          <div className="space-y-3">
+            {groupedResults.map((group) => (
+              <PageGroup
+                key={group.pageNumber}
+                pageNumber={group.pageNumber}
+                results={group.results}
+                startIdx={group.startIdx}
+                activeResultIndex={activeResultIndex}
+                isDark={isDark}
+                txt={txt}
+                txt3={txt3}
+                onCopy={handleCopy}
+                copiedIdx={copiedIdx}
+                onClickResult={setActiveResultIndex}
+                isExpanded={expandedPageGroups.has(group.pageNumber)}
+                onToggle={() => togglePageGroup(group.pageNumber)}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
   return (
     <div
       className={`${glassCard} rounded-2xl overflow-hidden animate-fade-in-up animation-delay-400`}
@@ -623,402 +853,7 @@ export function TextSearchSection({ pages, isDark, glassCard, txt, txt2, txt3 }:
       </button>
 
       {/* Expanded content */}
-      {isExpanded && (
-        <div
-          className={`border-t px-6 pb-6 ${isDark ? "border-white/5" : "border-gray-200/60"}`}
-        >
-          {!hasText ? (
-            <div className={`py-8 text-center ${txt3}`}>
-              <FileText className="w-10 h-10 mx-auto mb-3 opacity-40" />
-              <p className={`text-sm font-medium ${txt2}`}>
-                Nenhum texto disponível
-              </p>
-              <p className="text-xs mt-1">
-                O documento não contém texto extraível para pesquisa.
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* Search Input */}
-              <div className="pt-5 pb-4">
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
-                    <Search
-                      className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 ${txt3}`}
-                    />
-                    <input
-                      ref={searchInputRef}
-                      type="text"
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Digite para pesquisar no texto do PDF..."
-                      className={`w-full pl-11 pr-10 py-3 text-sm rounded-xl border outline-none transition-all duration-200
-                        ${isDark
-                          ? "bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-amber-500/50 focus:bg-white/[0.07] focus:ring-2 focus:ring-amber-500/10"
-                          : "bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-                        }
-                        ${regexError ? (isDark ? "border-red-500/50" : "border-red-300") : ""}`}
-                      autoFocus
-                    />
-                    {query && (
-                      <button
-                        onClick={() => {
-                          setQuery("");
-                          setDebouncedQuery("");
-                          searchInputRef.current?.focus();
-                        }}
-                        className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md transition-all duration-200 cursor-pointer
-                          ${isDark ? "text-gray-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`}
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Options toggle */}
-                  <button
-                    onClick={() => setShowOptions(!showOptions)}
-                    className={`p-3 rounded-xl transition-all duration-200 cursor-pointer
-                      ${showOptions
-                        ? isDark
-                          ? "bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/30"
-                          : "bg-amber-100 text-amber-700 ring-1 ring-amber-200"
-                        : isDark
-                          ? "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
-                          : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700"
-                      }`}
-                    title="Opções de busca"
-                  >
-                    <Settings2 className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {/* Regex error */}
-                {regexError && (
-                  <p className="text-xs text-red-500 mt-2 flex items-center gap-1.5">
-                    <X className="w-3.5 h-3.5" />
-                    {regexError}
-                  </p>
-                )}
-
-                {/* Options panel */}
-                {showOptions && (
-                  <div
-                    className={`flex flex-wrap gap-2 mt-3 p-3 rounded-xl ${isDark ? "bg-white/[0.03]" : "bg-gray-50"
-                      }`}
-                  >
-                    {[
-                      {
-                        key: "caseSensitive" as keyof SearchOptions,
-                        icon: CaseSensitive,
-                        label: "Diferenciar maiúsculas",
-                        shortLabel: "Aa",
-                      },
-                      {
-                        key: "wholeWord" as keyof SearchOptions,
-                        icon: WholeWord,
-                        label: "Palavra inteira",
-                        shortLabel: "Ab",
-                      },
-                      {
-                        key: "useRegex" as keyof SearchOptions,
-                        icon: Regex,
-                        label: "Expressão regular",
-                        shortLabel: ".*",
-                      },
-                    ].map(({ key, icon: Icon, label }) => (
-                      <button
-                        key={key}
-                        onClick={() => toggleOption(key)}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer
-                          ${options[key]
-                            ? isDark
-                              ? "bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/30"
-                              : "bg-amber-100 text-amber-700 ring-1 ring-amber-200"
-                            : isDark
-                              ? "bg-white/5 text-gray-400 hover:bg-white/10"
-                              : "bg-white text-gray-500 hover:bg-gray-100"
-                          }`}
-                      >
-                        <Icon className="w-4 h-4" />
-                        {label}
-                      </button>
-                    ))}
-
-                    <div
-                      className={`w-full text-[10px] mt-1 ${txt3} flex items-center gap-1.5`}
-                    >
-                      <Hash className="w-3 h-3" />
-                      Enter = próximo · Shift+Enter = anterior · Esc = limpar
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Results summary bar */}
-              {debouncedQuery.trim() && (
-                <div
-                  className={`flex items-center justify-between gap-3 py-3 px-4 mb-4 rounded-xl ${isDark ? "bg-white/[0.03]" : "bg-gray-50"
-                    }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className={`text-sm font-medium ${txt2}`}>
-                      {searchResults.length > 0 ? (
-                        <>
-                          <span className={`font-bold ${txt}`}>
-                            {searchResults.length}
-                          </span>{" "}
-                          resultado
-                          {searchResults.length !== 1 ? "s" : ""} em{" "}
-                          <span className={`font-bold ${txt}`}>
-                            {pagesWithMatches.size}
-                          </span>{" "}
-                          página{pagesWithMatches.size !== 1 ? "s" : ""}
-                          {searchResults.length >= 500 && (
-                            <span className={`text-xs ml-1 ${txt3}`}>
-                              (limite de 500)
-                            </span>
-                          )}
-                        </>
-                      ) : (
-                        <span className={txt3}>
-                          Nenhum resultado encontrado para &ldquo;
-                          {debouncedQuery}&rdquo;
-                        </span>
-                      )}
-                    </span>
-                  </div>
-
-                  {/* Navigation arrows */}
-                  {searchResults.length > 1 && (
-                    <div className="flex items-center gap-1.5">
-                      <span className={`text-xs font-medium mr-2 ${txt3}`}>
-                        {activeResultIndex + 1}/{searchResults.length}
-                      </span>
-                      <button
-                        onClick={goToPrev}
-                        className={`p-1.5 rounded-lg transition-all duration-200 cursor-pointer
-                          ${isDark ? "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700"}`}
-                        title="Anterior (Shift+Enter)"
-                      >
-                        <ChevronUp className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={goToNext}
-                        className={`p-1.5 rounded-lg transition-all duration-200 cursor-pointer
-                          ${isDark ? "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700"}`}
-                        title="Próximo (Enter)"
-                      >
-                        <ChevronDown className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Page distribution mini bar */}
-              {searchResults.length > 0 && pages.length > 1 && (
-                <div className="mb-4">
-                  <p className={`text-[10px] uppercase tracking-wider font-semibold mb-2 ${txt3}`}>
-                    Distribuição por página
-                  </p>
-                  <div className="flex gap-1 items-end h-10">
-                    {pages.map((page) => {
-                      const count = searchResults.filter(
-                        (r) => r.pageNumber === page.pageNumber
-                      ).length;
-                      const maxCount = Math.max(
-                        ...pages.map(
-                          (p) =>
-                            searchResults.filter(
-                              (r) => r.pageNumber === p.pageNumber
-                            ).length
-                        )
-                      );
-                      const height =
-                        count > 0 ? Math.max(8, (count / maxCount) * 100) : 4;
-
-                      return (
-                        <button
-                          key={page.pageNumber}
-                          onClick={() => {
-                            if (count > 0) {
-                              const firstIdx = searchResults.findIndex(
-                                (r) => r.pageNumber === page.pageNumber
-                              );
-                              if (firstIdx >= 0) {
-                                setActiveResultIndex(firstIdx);
-                                setExpandedPageGroups((prev) => {
-                                  const next = new Set(prev);
-                                  next.add(page.pageNumber);
-                                  return next;
-                                });
-                              }
-                            }
-                          }}
-                          className={`flex-1 rounded-sm transition-all duration-300 cursor-pointer group relative min-w-[4px]
-                            ${count > 0
-                              ? isDark
-                                ? "bg-amber-500/60 hover:bg-amber-400/80"
-                                : "bg-amber-400 hover:bg-amber-500"
-                              : isDark
-                                ? "bg-white/5"
-                                : "bg-gray-200"
-                            }`}
-                          style={{ height: `${height}%` }}
-                          title={`Página ${page.pageNumber}: ${count} resultado${count !== 1 ? "s" : ""}`}
-                        >
-                          {/* Tooltip */}
-                          <div
-                            className={`absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 rounded text-[9px] font-medium whitespace-nowrap
-                              opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 z-10
-                              ${isDark ? "bg-gray-800 text-gray-200" : "bg-gray-900 text-white"}`}
-                          >
-                            P{page.pageNumber}: {count}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="flex justify-between mt-1">
-                    <span className={`text-[9px] ${txt3}`}>P1</span>
-                    <span className={`text-[9px] ${txt3}`}>
-                      P{pages.length}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* Grouped Results */}
-              {searchResults.length > 0 && (
-                <div className="space-y-2">
-                  {/* Quick actions bar */}
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          const allPages = new Set(
-                            groupedResults.map((g) => g.pageNumber)
-                          );
-                          setExpandedPageGroups(allPages);
-                        }}
-                        className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-all duration-200 cursor-pointer
-                          ${isDark ? "text-gray-400 hover:bg-white/5 hover:text-white" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}
-                      >
-                        Expandir tudo
-                      </button>
-                      <button
-                        onClick={() => setExpandedPageGroups(new Set())}
-                        className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-all duration-200 cursor-pointer
-                          ${isDark ? "text-gray-400 hover:bg-white/5 hover:text-white" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}
-                      >
-                        Recolher tudo
-                      </button>
-                    </div>
-
-                    {/* Copy all matches */}
-                    <button
-                      onClick={() => {
-                        const allText = searchResults
-                          .map(
-                            (r) =>
-                              `[P${r.pageNumber} L${r.lineNumber}] ${r.matchText}`
-                          )
-                          .join("\n");
-                        handleCopy(allText, -999);
-                      }}
-                      className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all duration-200 cursor-pointer
-                        ${copiedIdx === -999
-                          ? "bg-emerald-500/15 text-emerald-500"
-                          : isDark
-                            ? "text-gray-400 hover:bg-white/5 hover:text-white"
-                            : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-                        }`}
-                    >
-                      {copiedIdx === -999 ? (
-                        <Check className="w-3.5 h-3.5" />
-                      ) : (
-                        <ArrowUpRight className="w-3.5 h-3.5" />
-                      )}
-                      {copiedIdx === -999 ? "Copiado!" : "Copiar todos"}
-                    </button>
-                  </div>
-
-                  {/* Page groups */}
-                  {groupedResults.slice(0, Math.ceil(visibleResults / 3)).map((group) => (
-                    <PageGroup
-                      key={group.pageNumber}
-                      pageNumber={group.pageNumber}
-                      results={group.results}
-                      startIdx={group.startIdx}
-                      activeResultIndex={activeResultIndex}
-                      isDark={isDark}
-                      txt={txt}
-                      txt3={txt3}
-                      onCopy={handleCopy}
-                      copiedIdx={copiedIdx}
-                      onClickResult={(idx) => setActiveResultIndex(idx)}
-                      isExpanded={expandedPageGroups.has(group.pageNumber)}
-                      onToggle={() => togglePageGroup(group.pageNumber)}
-                    />
-                  ))}
-
-                  {/* Load more */}
-                  {groupedResults.length >
-                    Math.ceil(visibleResults / 3) && (
-                      <button
-                        onClick={() =>
-                          setVisibleResults((prev) => prev + RESULTS_PER_PAGE)
-                        }
-                        className={`w-full py-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer
-                        ${isDark ? "bg-white/[0.03] text-gray-400 hover:bg-white/[0.06] hover:text-white" : "bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}
-                      >
-                        Mostrar mais{" "}
-                        {groupedResults.length -
-                          Math.ceil(visibleResults / 3)}{" "}
-                        página(s)
-                      </button>
-                    )}
-                </div>
-              )}
-
-              {/* Empty state for search */}
-              {debouncedQuery.trim() && searchResults.length === 0 && (
-                <div className={`py-10 text-center ${txt3}`}>
-                  <Search className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p className={`text-sm font-medium ${txt2}`}>
-                    Nenhum resultado encontrado
-                  </p>
-                  <p className="text-xs mt-1.5 max-w-sm mx-auto">
-                    Tente termos diferentes, desative &ldquo;Palavra inteira&rdquo; ou
-                    verifique se &ldquo;Diferenciar maiúsculas&rdquo; está correto.
-                  </p>
-                </div>
-              )}
-
-              {/* Idle state (no query yet) */}
-              {!debouncedQuery.trim() && (
-                <div className={`py-8 text-center ${txt3}`}>
-                  <div
-                    className={`w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center ${isDark ? "bg-white/[0.03]" : "bg-gray-100"
-                      }`}
-                  >
-                    <Search className="w-7 h-7 opacity-40" />
-                  </div>
-                  <p className={`text-sm font-medium ${txt2}`}>
-                    Pronto para pesquisar
-                  </p>
-                  <p className="text-xs mt-1.5 max-w-sm mx-auto">
-                    Digite um termo acima para pesquisar em todas as{" "}
-                    {pages.length} página{pages.length !== 1 ? "s" : ""} do
-                    documento.
-                  </p>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
+      {isExpanded && content}
     </div>
   );
 }
