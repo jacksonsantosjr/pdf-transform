@@ -380,7 +380,7 @@ export function App() {
 
                 <button
                   onClick={handleCancel}
-                  className={`mt-8 px-6 py-2.5 rounded-xl border ${isDark ? "border-white/10 hover:bg-white/5" : "border-gray-200 hover:bg-gray-50"} ${txt2} text-sm font-medium transition-all duration-300 flex items-center gap-2 mx-auto cursor-pointer`}
+                  className={`mt-8 px-6 py-2.5 rounded-xl border ${isDark ? "border-white/10 hover:border-red-500/50 hover:bg-red-500/10 hover:text-red-400" : "border-gray-200 hover:border-red-200 hover:bg-red-50 hover:text-red-600"} ${txt2} text-sm font-medium transition-all duration-300 flex items-center gap-2 mx-auto cursor-pointer`}
                 >
                   <XCircle className="w-4 h-4" />
                   Cancelar Processamento
