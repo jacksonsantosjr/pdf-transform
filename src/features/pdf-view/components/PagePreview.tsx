@@ -33,18 +33,16 @@ interface PagePreviewSectionProps {
 
 /* ---- Helper: Render a single PDF page to canvas ---- */
 
+// @ts-ignore - Importado para efeitos colaterais de inicialização do worker
 import { pdfjs } from "../../../utils/pdfWorker";
 
 async function renderPageToCanvas(
-  pdfData: ArrayBuffer,
+  pdfDocument: any, // PDFDocumentProxy
   pageNum: number,
   scale: number,
   canvas: HTMLCanvasElement
 ): Promise<void> {
-  if (!pdfjs) throw new Error("PDF.js não disponível");
-
-  const pdf = await pdfjs.getDocument({ data: new Uint8Array(pdfData) }).promise;
-  const page = await pdf.getPage(pageNum);
+  const page = await pdfDocument.getPage(pageNum);
   const viewport = page.getViewport({ scale });
 
   canvas.width = viewport.width;
@@ -61,13 +59,13 @@ async function renderPageToCanvas(
    ================================================================ */
 
 const PageThumbnail = memo(function PageThumbnail({
-  pdfData,
+  pdfDocument,
   pageNum,
   isActive,
   isDark,
   onClick,
 }: {
-  pdfData: ArrayBuffer;
+  pdfDocument: any;
   pageNum: number;
   isActive: boolean;
   isDark: boolean;
@@ -80,16 +78,17 @@ const PageThumbnail = memo(function PageThumbnail({
   useEffect(() => {
     let cancelled = false;
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !pdfDocument) return;
 
     setLoading(true);
     setError(false);
 
-    renderPageToCanvas(pdfData, pageNum, 0.5, canvas)
+    renderPageToCanvas(pdfDocument, pageNum, 0.4, canvas)
       .then(() => {
         if (!cancelled) setLoading(false);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error(`Erro ao renderizar thumbnail da página ${pageNum}:`, err);
         if (!cancelled) {
           setLoading(false);
           setError(true);
@@ -99,7 +98,7 @@ const PageThumbnail = memo(function PageThumbnail({
     return () => {
       cancelled = true;
     };
-  }, [pdfData, pageNum]);
+  }, [pdfDocument, pageNum]);
 
   return (
     <button
@@ -164,7 +163,7 @@ const PageThumbnail = memo(function PageThumbnail({
    ================================================================ */
 
 function FullPageViewer({
-  pdfData,
+  pdfDocument,
   pageNum,
   totalPages,
   isDark,
@@ -173,7 +172,7 @@ function FullPageViewer({
   onScaleChange,
   onClose,
 }: {
-  pdfData: ArrayBuffer;
+  pdfDocument: any;
   pageNum: number;
   totalPages: number;
   isDark: boolean;
@@ -189,22 +188,23 @@ function FullPageViewer({
   useEffect(() => {
     let cancelled = false;
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !pdfDocument) return;
 
     setLoading(true);
 
-    renderPageToCanvas(pdfData, pageNum, scale, canvas)
+    renderPageToCanvas(pdfDocument, pageNum, scale, canvas)
       .then(() => {
         if (!cancelled) setLoading(false);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error("Erro ao renderizar página inteira:", err);
         if (!cancelled) setLoading(false);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [pdfData, pageNum, scale]);
+  }, [pdfDocument, pageNum, scale]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -401,13 +401,8 @@ export function PagePreviewSection({
   const [viewerScale, setViewerScale] = useState(1.5);
   const [showFullViewer, setShowFullViewer] = useState(false);
   const [thumbnailsLoaded, setThumbnailsLoaded] = useState(embedded ? true : false);
-
-  // Limit thumbnails for performance (first load shows 12, then all)
-  const MAX_INITIAL_THUMBS = 12;
-  const [showAllThumbs, setShowAllThumbs] = useState(false);
-  const displayedPages = showAllThumbs
-    ? pageCount
-    : Math.min(pageCount, MAX_INITIAL_THUMBS);
+  const [pdfDocument, setPdfDocument] = useState<any>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   const handleThumbnailClick = useCallback((pageNum: number) => {
     setActivePage(pageNum);
@@ -422,24 +417,71 @@ export function PagePreviewSection({
     });
   }, []);
 
+  // Load PDF document once
+  useEffect(() => {
+    if (!fileArrayBuffer) return;
+
+    let cancelled = false;
+    const loadDoc = async () => {
+      try {
+        setPdfError(null);
+        if (!pdfjs) throw new Error("PDF.js não disponível");
+
+        const loadingTask = pdfjs.getDocument({ data: new Uint8Array(fileArrayBuffer) });
+        const pdf = await loadingTask.promise;
+
+        if (!cancelled) {
+          setPdfDocument(pdf);
+        }
+      } catch (err: any) {
+        console.error("Erro ao carregar documento PDF para preview:", err);
+        if (!cancelled) {
+          setPdfError(err?.message || "Erro ao carregar PDF");
+        }
+      }
+    };
+
+    loadDoc();
+    return () => { cancelled = true; };
+  }, [fileArrayBuffer]);
+
+  // Limit thumbnails for performance (first load shows 12, then all)
+  const MAX_INITIAL_THUMBS = 12;
+  const [showAllThumbs, setShowAllThumbs] = useState(false);
+  const displayedPages = showAllThumbs
+    ? pageCount
+    : Math.min(pageCount, MAX_INITIAL_THUMBS);
+
   // Content render logic
   const content = (
     <div className={`${embedded ? "" : "px-6 pb-6"} animate-fade-in-up`} style={{ animationDuration: "0.3s" }}>
       {/* ---- GRID VIEW ---- */}
       {viewMode === "grid" && (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            {Array.from({ length: displayedPages }, (_, i) => (
-              <PageThumbnail
-                key={i + 1}
-                pdfData={fileArrayBuffer}
-                pageNum={i + 1}
-                isActive={activePage === i + 1}
-                isDark={isDark}
-                onClick={() => handleThumbnailClick(i + 1)}
-              />
-            ))}
-          </div>
+          {pdfError ? (
+            <div className="p-12 text-center">
+              <p className="text-red-500 font-medium">Falha ao carregar visualização</p>
+              <p className={`text-xs mt-1 ${txt3}`}>{pdfError}</p>
+            </div>
+          ) : !pdfDocument ? (
+            <div className="p-12 flex flex-col items-center gap-4">
+              <Loader2 className="w-8 h-8 animate-spin text-indigo-500/50" />
+              <p className={`text-sm ${txt3}`}>Iniciando motor de visualização...</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {Array.from({ length: displayedPages }, (_, i) => (
+                <PageThumbnail
+                  key={i + 1}
+                  pdfDocument={pdfDocument}
+                  pageNum={i + 1}
+                  isActive={activePage === i + 1}
+                  isDark={isDark}
+                  onClick={() => handleThumbnailClick(i + 1)}
+                />
+              ))}
+            </div>
+          )}
 
           {/* Show more thumbnails button */}
           {pageCount > MAX_INITIAL_THUMBS && !showAllThumbs && (
@@ -467,7 +509,7 @@ export function PagePreviewSection({
       {/* ---- SINGLE PAGE VIEW ---- */}
       {viewMode === "single" && (
         <SinglePageView
-          pdfData={fileArrayBuffer}
+          pdfDocument={pdfDocument}
           pageNum={activePage}
           totalPages={pageCount}
           isDark={isDark}
@@ -525,9 +567,9 @@ export function PagePreviewSection({
         </div>
         {content}
         {/* Full-screen viewer */}
-        {showFullViewer && (
+        {showFullViewer && pdfDocument && (
           <FullPageViewer
-            pdfData={fileArrayBuffer}
+            pdfDocument={pdfDocument}
             pageNum={activePage}
             totalPages={pageCount}
             isDark={isDark}
@@ -617,9 +659,9 @@ export function PagePreviewSection({
       {isVisible && thumbnailsLoaded && content}
 
       {/* Full-screen viewer */}
-      {showFullViewer && (
+      {showFullViewer && pdfDocument && (
         <FullPageViewer
-          pdfData={fileArrayBuffer}
+          pdfDocument={pdfDocument}
           pageNum={activePage}
           totalPages={pageCount}
           isDark={isDark}
@@ -638,7 +680,7 @@ export function PagePreviewSection({
    ================================================================ */
 
 function SinglePageView({
-  pdfData,
+  pdfDocument,
   pageNum,
   totalPages,
   isDark,
@@ -647,7 +689,7 @@ function SinglePageView({
   onPageChange,
   onExpand,
 }: {
-  pdfData: ArrayBuffer;
+  pdfDocument: any;
   pageNum: number;
   totalPages: number;
   isDark: boolean;
@@ -663,22 +705,23 @@ function SinglePageView({
   useEffect(() => {
     let cancelled = false;
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !pdfDocument) return;
 
     setLoading(true);
 
-    renderPageToCanvas(pdfData, pageNum, 1.5, canvas)
+    renderPageToCanvas(pdfDocument, pageNum, 1.2, canvas)
       .then(() => {
         if (!cancelled) setLoading(false);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error("Erro ao renderizar view única:", err);
         if (!cancelled) setLoading(false);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [pdfData, pageNum]);
+  }, [pdfDocument, pageNum]);
 
   return (
     <div>

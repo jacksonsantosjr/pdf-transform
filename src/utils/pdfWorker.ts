@@ -1,9 +1,12 @@
 import * as pdfjs from 'pdfjs-dist';
 
-// @ts-ignore - Propriedade GlobalWorkerOptions pode não estar tipada corretamente em algumas versões
-if (typeof window !== 'undefined' && 'Worker' in window) {
-    // Configura o worker para carregar do arquivo estático na pasta public
-    pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+// Importa a URL do worker diretamente do pacote pdfjs-dist para garantir compatibilidade com o Vite
+// @ts-ignore - Importação de recurso estático do Vite
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
+
+if (typeof window !== 'undefined') {
+    pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 }
 
 export { pdfjs };
+

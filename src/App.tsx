@@ -147,6 +147,10 @@ export function App() {
       const newFileName = currentFile.name.replace(/\.pdf$/i, "_ocr.pdf");
       const newFile = new File([blob], newFileName, { type: "application/pdf" });
 
+      // Update buffer for preview
+      const newBuffer = await newFile.arrayBuffer();
+      setFileBuffer(newBuffer);
+
       setCurrentFile(newFile);
       setState("converted");
 
