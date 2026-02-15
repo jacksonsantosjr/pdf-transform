@@ -9,41 +9,49 @@
 
 class BackgroundKeepAlive {
     private audioCtx: AudioContext | null = null;
-    private oscillator: OscillatorNode | null = null;
-    private gainNode: GainNode | null = null;
+    private timer: any = null;
     private isActive: boolean = false;
 
     /**
-     * Inicia o áudio silencioso
+     * Inicia o áudio rítmico silencioso
      */
     public start() {
         if (this.isActive) return;
 
         try {
-            // Cria contexto de áudio se não existir
             if (!this.audioCtx) {
                 this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
             }
 
-            // Garante que o contexto está rodando (pode ser bloqueado se não houver interação prévia)
             if (this.audioCtx.state === 'suspended') {
                 this.audioCtx.resume();
             }
 
-            // Cria oscilador de frequência inaudível
-            this.oscillator = this.audioCtx.createOscillator();
-            this.oscillator.frequency.setValueAtTime(440, this.audioCtx.currentTime);
-
-            // Cria controle de volume (zero para silêncio absoluto)
-            this.gainNode = this.audioCtx.createGain();
-            this.gainNode.gain.setValueAtTime(0, this.audioCtx.currentTime);
-
-            this.oscillator.connect(this.gainNode);
-            this.gainNode.connect(this.audioCtx.destination);
-
-            this.oscillator.start();
             this.isActive = true;
-            console.log('Background Keep-Alive: Ativado');
+
+            // Cria um "pulso" rítmico. Navegadores costumam dar mais prioridade 
+            // a sons dinâmicos/rítmicos do que a sons estáticos.
+            this.timer = setInterval(() => {
+                if (!this.audioCtx || this.audioCtx.state === 'closed') return;
+
+                const osc = this.audioCtx.createOscillator();
+                const gain = this.audioCtx.createGain();
+
+                osc.frequency.setValueAtTime(1, this.audioCtx.currentTime); // Frequência infra-sônica
+                gain.gain.setValueAtTime(0.00001, this.audioCtx.currentTime); // Praticamente silêncio
+                gain.gain.exponentialRampToValueAtTime(0.000001, this.audioCtx.currentTime + 0.1);
+
+                osc.connect(gain);
+                gain.connect(this.audioCtx.destination);
+
+                osc.start();
+                osc.stop(this.audioCtx.currentTime + 0.1);
+
+                // Heartbeat para debug em background (visível no console)
+                console.debug('Background Keep-Alive Heartbeat: Ativo');
+            }, 500);
+
+            console.log('Background Keep-Alive V2: Ativado (Rítmico)');
         } catch (err) {
             console.warn('Erro ao iniciar Keep-Alive:', err);
         }
@@ -56,12 +64,9 @@ class BackgroundKeepAlive {
         if (!this.isActive) return;
 
         try {
-            if (this.oscillator) {
-                this.oscillator.stop();
-                this.oscillator.disconnect();
-            }
-            if (this.gainNode) {
-                this.gainNode.disconnect();
+            if (this.timer) {
+                clearInterval(this.timer);
+                this.timer = null;
             }
             this.isActive = false;
             console.log('Background Keep-Alive: Desativado');

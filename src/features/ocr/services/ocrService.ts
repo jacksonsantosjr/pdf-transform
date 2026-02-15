@@ -54,11 +54,11 @@ export async function convertToNativeTextPDF(
                 .trim();
             const pageHasText = existingText.replace(/\s/g, "").length > 20;
 
-            // Render to canvas
+            // Render to canvas with high performance settings
             const canvas = document.createElement("canvas");
             canvas.width = renderViewport.width;
             canvas.height = renderViewport.height;
-            const ctx = canvas.getContext("2d");
+            const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
             if (!ctx) throw new Error("Canvas não disponível");
 
             await page.render({ canvasContext: ctx, viewport: renderViewport, canvas } as any).promise;
@@ -74,9 +74,8 @@ export async function convertToNativeTextPDF(
             } else {
                 onProgress(base + 2, `OCR página ${i} de ${pdf.numPages}...`);
 
-                // Reconhece o texto usando o worker criado
+                // Reconhece o texto usando o worker criado (processamento pesado paralelo)
                 const result = await worker.recognize(canvas);
-
                 finalText = result.data.text;
             }
 
@@ -85,10 +84,9 @@ export async function convertToNativeTextPDF(
             const pageH = origViewport.height;
             const newPage = newPdf.addPage([pageW, pageH]);
 
-            // Embed page image as JPEG
-            const jpegDataUrl = canvas.toDataURL("image/jpeg", 0.88);
-            const imgResp = await fetch(jpegDataUrl);
-            const imgBytes = await imgResp.arrayBuffer();
+            // Embed page image as JPEG using direct blob instead of dataURL (faster and less memory)
+            const imgBlob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), "image/jpeg", 0.85));
+            const imgBytes = await imgBlob.arrayBuffer();
             const jpgImage = await newPdf.embedJpg(new Uint8Array(imgBytes));
 
             newPage.drawImage(jpgImage, {
