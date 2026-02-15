@@ -6,7 +6,8 @@ import { backgroundKeepAlive } from "../../../utils/backgroundKeepAlive";
 
 export async function convertToNativeTextPDF(
     file: File,
-    onProgress: (progress: number, message: string) => void
+    onProgress: (progress: number, message: string) => void,
+    abortSignal?: AbortSignal
 ): Promise<Blob> {
 
     if (!pdfjs) {
@@ -38,13 +39,18 @@ export async function convertToNativeTextPDF(
         const font = await newPdf.embedFont(StandardFonts.Helvetica);
 
         for (let i = 1; i <= pdf.numPages; i++) {
+            // Verifica se o processamento foi cancelado
+            if (abortSignal?.aborted) {
+                throw new Error("Conversão cancelada");
+            }
+
             const base = 10 + ((i - 1) / pdf.numPages) * 85;
 
             onProgress(base, `Renderizando página ${i} de ${pdf.numPages}...`);
 
             const page = await pdf.getPage(i);
             const origViewport = page.getViewport({ scale: 1 });
-            const renderViewport = page.getViewport({ scale: 2.5 });
+            const renderViewport = page.getViewport({ scale: 2.0 }); // Escala otimizada para velocidade/qualidade
 
             // Check if page already has text
             const textContent = await page.getTextContent();
@@ -123,9 +129,10 @@ export async function convertToNativeTextPDF(
                 }
             }
 
-            // Clean up
+            // Clean up immediately
             canvas.width = 0;
             canvas.height = 0;
+            (canvas as any) = null;
         }
 
         // Termina o worker após o uso para liberar memória

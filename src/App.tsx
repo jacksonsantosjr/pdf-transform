@@ -128,6 +128,15 @@ export function App() {
     handleFile(f);
   }, [handleFile]);
 
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const handleCancel = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+  }, []);
+
   const handleConvertWrapper = useCallback(async () => {
     if (!currentFile || !fileBuffer) return;
 
@@ -135,11 +144,15 @@ export function App() {
     setProgressLocal(0);
     setProgressMsgLocal("Iniciando conversão OCR...");
 
+    // Initialize abort controller
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       const blob = await convertToNativeTextPDF(currentFile, (p, m) => {
         setProgressLocal(p);
         setProgressMsgLocal(m);
-      });
+      }, controller.signal);
       const url = URL.createObjectURL(blob);
       setConvertedUrl(url);
 
@@ -364,6 +377,14 @@ export function App() {
                   <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transition-all duration-500 ease-out" style={{ width: `${state === "analyzing" ? analysisProgress : progressLocal}%` }} />
                 </div>
                 {state === "converting" && <p className={`text-xs mt-4 ${txt3}`}>💡 O OCR pode levar alguns minutos dependendo do tamanho do documento</p>}
+
+                <button
+                  onClick={handleCancel}
+                  className={`mt-8 px-6 py-2.5 rounded-xl border ${isDark ? "border-white/10 hover:bg-white/5" : "border-gray-200 hover:bg-gray-50"} ${txt2} text-sm font-medium transition-all duration-300 flex items-center gap-2 mx-auto cursor-pointer`}
+                >
+                  <XCircle className="w-4 h-4" />
+                  Cancelar Processamento
+                </button>
               </div>
             </div>
           )}

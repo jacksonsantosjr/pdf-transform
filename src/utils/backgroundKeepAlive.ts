@@ -1,72 +1,79 @@
 
 /**
- * Utilitário para evitar que o navegador "suspenda" ou reduza a prioridade da aba
- * enquanto processos pesados (como OCR) estão rodando em segundo plano.
- * 
- * Ele utiliza a técnica de áudio silencioso em loop, sinalizando ao navegador 
- * que a tarefa é prioritária.
+ * Utilitário de Keep-Alive de nível industrial.
+ * Utiliza um Web Worker para gerar pulsos de processamento que NÃO são limitados
+ * pelo navegador quando a aba perde o foco.
  */
 
 class BackgroundKeepAlive {
     private audioCtx: AudioContext | null = null;
-    private timer: any = null;
+    private timerWorker: Worker | null = null;
     private isActive: boolean = false;
 
     /**
-     * Inicia o áudio rítmico silencioso
+     * Inicia o mecanismo de persistência
      */
     public start() {
         if (this.isActive) return;
 
         try {
+            // 1. Inicia o AudioContext (ajuda na prioridade do processo)
             if (!this.audioCtx) {
                 this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
             }
-
             if (this.audioCtx.state === 'suspended') {
                 this.audioCtx.resume();
             }
 
+            // 2. Cria um Worker via Blob para não precisar de arquivo externo
+            // Workers NÃO sofrem o mesmo throttling de timers que a main thread
+            const workerCode = `
+                let timer = null;
+                self.onmessage = function(e) {
+                    if (e.data === 'start') {
+                        timer = setInterval(() => {
+                            self.postMessage('pulse');
+                        }, 200); // Pulso a cada 200ms
+                    } else if (e.data === 'stop') {
+                        if (timer) clearInterval(timer);
+                    }
+                };
+            `;
+            const blob = new Blob([workerCode], { type: 'application/javascript' });
+            this.timerWorker = new Worker(URL.createObjectURL(blob));
+
+            // Quando o worker envia um pulso, a main thread é "acordada" para 
+            // processar o evento de mensagem.
+            this.timerWorker.onmessage = () => {
+                // Tenta manter o AudioContext ativo
+                if (this.audioCtx && this.audioCtx.state === 'suspended') {
+                    this.audioCtx.resume();
+                }
+                // Log de debug discreto
+                if (Math.random() > 0.95) {
+                    console.debug('Background persistence pulse received from worker');
+                }
+            };
+
+            this.timerWorker.postMessage('start');
             this.isActive = true;
-
-            // Cria um "pulso" rítmico. Navegadores costumam dar mais prioridade 
-            // a sons dinâmicos/rítmicos do que a sons estáticos.
-            this.timer = setInterval(() => {
-                if (!this.audioCtx || this.audioCtx.state === 'closed') return;
-
-                const osc = this.audioCtx.createOscillator();
-                const gain = this.audioCtx.createGain();
-
-                osc.frequency.setValueAtTime(1, this.audioCtx.currentTime); // Frequência infra-sônica
-                gain.gain.setValueAtTime(0.00001, this.audioCtx.currentTime); // Praticamente silêncio
-                gain.gain.exponentialRampToValueAtTime(0.000001, this.audioCtx.currentTime + 0.1);
-
-                osc.connect(gain);
-                gain.connect(this.audioCtx.destination);
-
-                osc.start();
-                osc.stop(this.audioCtx.currentTime + 0.1);
-
-                // Heartbeat para debug em background (visível no console)
-                console.debug('Background Keep-Alive Heartbeat: Ativo');
-            }, 500);
-
-            console.log('Background Keep-Alive V2: Ativado (Rítmico)');
+            console.log('Background Keep-Alive V3: Ativado (High-Priority Worker)');
         } catch (err) {
-            console.warn('Erro ao iniciar Keep-Alive:', err);
+            console.warn('Erro ao iniciar Keep-Alive V3:', err);
         }
     }
 
     /**
-     * Interrompe o áudio silencioso
+     * Interrompe o mecanismo
      */
     public stop() {
         if (!this.isActive) return;
 
         try {
-            if (this.timer) {
-                clearInterval(this.timer);
-                this.timer = null;
+            if (this.timerWorker) {
+                this.timerWorker.postMessage('stop');
+                this.timerWorker.terminate();
+                this.timerWorker = null;
             }
             this.isActive = false;
             console.log('Background Keep-Alive: Desativado');
