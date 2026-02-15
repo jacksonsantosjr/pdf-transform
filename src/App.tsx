@@ -29,6 +29,8 @@ import {
   ArrowRight,
 } from "lucide-react";
 
+import { toast } from "sonner";
+
 /* ---- Hooks & Services ---- */
 import { useTheme } from "./hooks/useTheme";
 import { usePdfAnalyzer } from "./features/pdf-analysis/hooks/usePdfAnalyzer";
@@ -140,12 +142,27 @@ export function App() {
       });
       const url = URL.createObjectURL(blob);
       setConvertedUrl(url);
+
+      // Create a new File object from the blob to re-analyze
+      const newFileName = currentFile.name.replace(/\.pdf$/i, "_ocr.pdf");
+      const newFile = new File([blob], newFileName, { type: "application/pdf" });
+
+      setCurrentFile(newFile);
       setState("converted");
+
+      // Automatically trigger re-analysis
+      toast.success("OCR concluído! Reanalisando documento...");
+      await analyze(newFile);
+
     } catch (err: any) {
+      if (err instanceof Error && err.message === "Conversão cancelada") {
+        setState("analyzed"); // Revert to previous state if cancelled
+        return;
+      }
       setState("error");
       setErrorLocal(err?.message || "Erro na conversão OCR.");
     }
-  }, [currentFile]);
+  }, [currentFile, analyze]);
 
   const reset = useCallback(() => {
     resetAnalysis();
@@ -435,8 +452,8 @@ export function App() {
                 </div>
               )}
 
-              {/* Converted Success */}
-              {state === "converted" && convertedUrl && (
+              {/* Converted Success - Adjusted condition to show even after re-analysis */}
+              {convertedUrl && (state === "converted" || state === "analyzed") && (
                 <div className={`animate-scale-in rounded-2xl p-6 border-2 ${isDark ? "border-emerald-500/30 bg-emerald-500/5 backdrop-blur-xl" : "border-emerald-200 bg-emerald-50/60 backdrop-blur-xl"}`}>
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-5">
                     <div className="flex items-center gap-4">
