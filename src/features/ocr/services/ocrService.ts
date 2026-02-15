@@ -132,7 +132,6 @@ export async function convertToNativeTextPDF(
             // Clean up immediately
             canvas.width = 0;
             canvas.height = 0;
-            (canvas as any) = null;
         }
 
         // Termina o worker após o uso para liberar memória
