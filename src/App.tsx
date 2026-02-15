@@ -113,9 +113,7 @@ export function App() {
     try {
       const buffer = await f.arrayBuffer();
       setFileBuffer(buffer);
-      // Create a copy of the buffer to prevent detachment if the worker transfers it
-      const bufferCopy = buffer.slice(0);
-      await analyze(f, bufferCopy); // Pass the file and a cloned buffer to analyze
+      await analyze(f); // Analyze the file
     } catch (err) {
       // Error handled by hook, but ensure buffer setting doesn't crash
       console.error(err);
@@ -168,7 +166,7 @@ export function App() {
       setState("error");
       setErrorLocal(err?.message || "Erro na conversão OCR.");
     }
-  }, [currentFile, analyze]);
+  }, [currentFile, fileBuffer, analyze]);
 
   const reset = useCallback(() => {
     resetAnalysis();
