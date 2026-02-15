@@ -36,22 +36,47 @@ interface PagePreviewSectionProps {
 // @ts-ignore - Importado para efeitos colaterais de inicialização do worker
 import { pdfjs } from "../../../utils/pdfWorker";
 
-async function renderPageToCanvas(
+interface RenderTaskResult {
+  promise: Promise<void>;
+  cancel: () => void;
+}
+
+function renderPageToCanvas(
   pdfDocument: any, // PDFDocumentProxy
   pageNum: number,
   scale: number,
   canvas: HTMLCanvasElement
-): Promise<void> {
-  const page = await pdfDocument.getPage(pageNum);
-  const viewport = page.getViewport({ scale });
+): RenderTaskResult {
+  let renderTask: any = null;
+  let cancelled = false;
 
-  canvas.width = viewport.width;
-  canvas.height = viewport.height;
+  const promise = (async () => {
+    const page = await pdfDocument.getPage(pageNum);
+    if (cancelled) return;
 
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas context não disponível");
+    const viewport = page.getViewport({ scale });
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
 
-  await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas context não disponível");
+
+    // Limpa o canvas antes de renderizar
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    renderTask = page.render({ canvasContext: ctx, viewport, canvas } as any);
+    await renderTask.promise;
+  })();
+
+  return {
+    promise,
+    cancel: () => {
+      cancelled = true;
+      if (renderTask) {
+        renderTask.cancel();
+      }
+    },
+  };
 }
 
 /* ================================================================
@@ -74,29 +99,41 @@ const PageThumbnail = memo(function PageThumbnail({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const renderTaskRef = useRef<{ cancel: () => void } | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
     const canvas = canvasRef.current;
     if (!canvas || !pdfDocument) return;
+
+    // Cancela tarefa anterior se existir
+    if (renderTaskRef.current) {
+      renderTaskRef.current.cancel();
+    }
 
     setLoading(true);
     setError(false);
 
-    renderPageToCanvas(pdfDocument, pageNum, 0.4, canvas)
+    const task = renderPageToCanvas(pdfDocument, pageNum, 0.4, canvas);
+    renderTaskRef.current = task;
+
+    task.promise
       .then(() => {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       })
       .catch((err) => {
+        if (err.name === "RenderingCancelledException") return;
         console.error(`Erro ao renderizar thumbnail da página ${pageNum}:`, err);
-        if (!cancelled) {
-          setLoading(false);
-          setError(true);
-        }
+        setLoading(false);
+        setError(true);
+        setErrorMessage(err?.message || String(err));
       });
 
     return () => {
-      cancelled = true;
+      if (renderTaskRef.current) {
+        renderTaskRef.current.cancel();
+      }
     };
   }, [pdfDocument, pageNum]);
 
@@ -128,8 +165,11 @@ const PageThumbnail = memo(function PageThumbnail({
         )}
 
         {error && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className={`text-xs ${isDark ? "text-gray-500" : "text-gray-400"}`}>Erro</span>
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-2 text-center">
+            <span className={`text-[10px] font-bold ${isDark ? "text-red-400/80" : "text-red-500/80"}`}>Erro</span>
+            <span className={`text-[8px] mt-1 line-clamp-2 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+              {errorMessage || "Falha na renderização"}
+            </span>
           </div>
         )}
       </div>
@@ -185,24 +225,35 @@ function FullPageViewer({
   const [loading, setLoading] = useState(true);
   const [rotation, setRotation] = useState(0);
 
+  const renderTaskRef = useRef<{ cancel: () => void } | null>(null);
+
   useEffect(() => {
-    let cancelled = false;
     const canvas = canvasRef.current;
     if (!canvas || !pdfDocument) return;
 
+    if (renderTaskRef.current) {
+      renderTaskRef.current.cancel();
+    }
+
     setLoading(true);
 
-    renderPageToCanvas(pdfDocument, pageNum, scale, canvas)
+    const task = renderPageToCanvas(pdfDocument, pageNum, scale, canvas);
+    renderTaskRef.current = task;
+
+    task.promise
       .then(() => {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       })
       .catch((err) => {
+        if (err.name === "RenderingCancelledException") return;
         console.error("Erro ao renderizar página inteira:", err);
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       });
 
     return () => {
-      cancelled = true;
+      if (renderTaskRef.current) {
+        renderTaskRef.current.cancel();
+      }
     };
   }, [pdfDocument, pageNum, scale]);
 
@@ -285,7 +336,7 @@ function FullPageViewer({
       </div>
 
       {/* Canvas area */}
-      <div className="relative z-10 flex-1 overflow-auto flex items-center justify-center p-4">
+      <div className="relative z-10 flex-1 overflow-auto flex items-start justify-center p-4 sm:p-8">
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center z-20">
             <div className="flex flex-col items-center gap-3">
@@ -297,7 +348,7 @@ function FullPageViewer({
 
         <canvas
           ref={canvasRef}
-          className="max-w-full shadow-2xl rounded-lg transition-transform duration-300"
+          className="max-w-full shadow-2xl rounded-lg transition-transform duration-300 origin-top my-auto lg:my-0"
           style={{
             opacity: loading ? 0.3 : 1,
             transform: `rotate(${rotation}deg)`,
@@ -427,7 +478,9 @@ export function PagePreviewSection({
         setPdfError(null);
         if (!pdfjs) throw new Error("PDF.js não disponível");
 
-        const loadingTask = pdfjs.getDocument({ data: new Uint8Array(fileArrayBuffer) });
+        // Create a copy of the buffer to prevent detachment if the worker transfers it
+        const bufferCopy = fileArrayBuffer.slice(0);
+        const loadingTask = pdfjs.getDocument({ data: new Uint8Array(bufferCopy) });
         const pdf = await loadingTask.promise;
 
         if (!cancelled) {
@@ -702,24 +755,35 @@ function SinglePageView({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [loading, setLoading] = useState(true);
 
+  const renderTaskRef = useRef<{ cancel: () => void } | null>(null);
+
   useEffect(() => {
-    let cancelled = false;
     const canvas = canvasRef.current;
     if (!canvas || !pdfDocument) return;
 
+    if (renderTaskRef.current) {
+      renderTaskRef.current.cancel();
+    }
+
     setLoading(true);
 
-    renderPageToCanvas(pdfDocument, pageNum, 1.2, canvas)
+    const task = renderPageToCanvas(pdfDocument, pageNum, 1.2, canvas);
+    renderTaskRef.current = task;
+
+    task.promise
       .then(() => {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       })
       .catch((err) => {
+        if (err.name === "RenderingCancelledException") return;
         console.error("Erro ao renderizar view única:", err);
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       });
 
     return () => {
-      cancelled = true;
+      if (renderTaskRef.current) {
+        renderTaskRef.current.cancel();
+      }
     };
   }, [pdfDocument, pageNum]);
 
