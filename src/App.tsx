@@ -279,7 +279,7 @@ export function App() {
         <header className={`sticky top-0 z-50 ${glass}`}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/25">
+              <div className="p-2.5 rounded-xl bg-indigo-600 shadow-lg shadow-indigo-600/20">
                 <FileSearch className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -313,7 +313,7 @@ export function App() {
                   Análise inteligente de documentos PDF
                 </div>
                 <h2 className={`text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 leading-tight ${txt}`}>
-                  Analise seus <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">arquivos PDF</span>
+                  Analise seus arquivos PDF
                 </h2>
                 <p className={`text-lg ${txt2} max-w-lg mx-auto`}>Identifique o tipo, extraia campos e informações, e converta PDFs digitalizados em texto nativo pesquisável.</p>
               </div>
@@ -374,7 +374,7 @@ export function App() {
                 <h3 className={`text-xl font-bold mb-2 ${txt}`}>{state === "analyzing" ? "Analisando PDF..." : "Convertendo com OCR..."}</h3>
                 <p className={`text-sm mb-6 ${txt2}`}>{state === "analyzing" ? analysisMsg : progressMsgLocal}</p>
                 <div className={`h-2.5 rounded-full overflow-hidden ${isDark ? "bg-gray-700/50" : "bg-gray-200"}`}>
-                  <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transition-all duration-500 ease-out" style={{ width: `${state === "analyzing" ? analysisProgress : progressLocal}%` }} />
+                  <div className="h-full rounded-full bg-indigo-500 transition-all duration-500 ease-out" style={{ width: `${state === "analyzing" ? analysisProgress : progressLocal}%` }} />
                 </div>
                 {state === "converting" && <p className={`text-xs mt-4 ${txt3}`}>💡 O OCR pode levar alguns minutos dependendo do tamanho do documento</p>}
 
@@ -398,7 +398,7 @@ export function App() {
                 </div>
                 <h3 className={`text-xl font-bold mb-2 ${txt}`}>Ops! Algo deu errado</h3>
                 <p className={`text-sm mb-6 ${txt2}`}>{errorLocal}</p>
-                <button onClick={reset} className="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-medium hover:shadow-lg hover:shadow-indigo-500/25 transition-all duration-300 hover:scale-105 cursor-pointer">
+                <button onClick={reset} className="px-6 py-3 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-500/25 transition-all duration-300 hover:scale-105 cursor-pointer">
                   Tentar Novamente
                 </button>
               </div>

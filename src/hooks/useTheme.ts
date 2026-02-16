@@ -8,8 +8,8 @@ export function useTheme() {
             if (saved) {
                 return saved === "dark";
             }
-            const system = window.matchMedia("(prefers-color-scheme: dark)").matches;
-            return system;
+            // Inicia sempre no modo claro por padrão, ignorando a preferência do sistema inicial
+            return false;
         }
         return false;
     });
