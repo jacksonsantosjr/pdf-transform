@@ -71,16 +71,24 @@ export async function convertToNativeTextPDF(
 
                 await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
 
-                // Verificação rápida de texto nativo
+                // Verificação de texto nativo com análise de QUALIDADE
                 const tc = await page.getTextContent();
                 const existingText = tc.items.map((it: any) => it.str).join(" ").trim();
-                const hasNativeText = existingText.replace(/\s/g, "").length > 20;
+                const strippedText = existingText.replace(/\s/g, "");
+                const charCount = strippedText.length;
+
+                // Calcular ratio de caracteres alfanuméricos (qualidade do texto)
+                const alphanumericCount = (strippedText.match(/[a-zA-Z0-9áàâãéèêíïóôõúüçÁÀÂÃÉÈÊÍÏÓÔÕÚÜÇ]/g) || []).length;
+                const qualityRatio = charCount > 0 ? alphanumericCount / charCount : 0;
+
+                // Texto é "nativo válido" se tem > 20 chars E qualidade > 50%
+                const hasNativeText = charCount > 20 && qualityRatio > 0.5;
 
                 let text = "";
                 if (hasNativeText) {
                     text = existingText;
                 } else {
-                    // Manda para o pool de workers
+                    // Texto ausente ou com encoding inválido → aplica OCR
                     const res = await (scheduler as any).addJob('recognize', canvas);
                     text = res.data.text;
                 }
