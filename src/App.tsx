@@ -456,7 +456,7 @@ export function App() {
               </div>
 
               {/* Conversion CTA */}
-              {(analysis.pdfType === "scanned-image" || analysis.pdfType === "mixed") && state !== "converted" && (
+              {state !== "converted" && (
                 <div className={`animate-fade-in-up animation-delay-200 rounded-2xl p-6 border-2 ${isDark ? "border-indigo-500/30 bg-indigo-500/5 backdrop-blur-xl" : "border-indigo-200 bg-indigo-50/60 backdrop-blur-xl"}`}>
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-5">
                     <div className="flex items-center gap-4">
